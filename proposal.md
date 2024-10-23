@@ -15,17 +15,26 @@ This command will start serving APIs at http://locahost:11435
 ### APIs
 
 1. Create a model
+
    **Request**
+
    `curl http://localhost:11435/api/create -d '{"name":"modelname", "modelpath":"path/to/model.gguf"}'`
+
    **Response**
+
    ```
    {"status":"success"}
    {"status":"failed to create model"}
    ```
+
 2. List local models
+
    **Request**
+
    `curl http://localhost:11435/api/list`
+
    **Response**
+
    ```
    {
     "models": [
@@ -38,10 +47,15 @@ This command will start serving APIs at http://locahost:11435
     ]
    }
    ```
+
 3. Delete a model
+
    **Request**
+
    `curl -X DELETE http://localhost:11435/api/delete -d '{"name":"llama3.2"}'`
+
    **Response**
+
    Returns 200 OK if successful, else 404 if the model does not exist.
 
 4. Chat
@@ -52,6 +66,7 @@ This command will start serving APIs at http://locahost:11435
   The message object has those fields:
 - `role`: the role of the message, either `system`, `assistant`, `user`
 - `content`: the content of the message
+
   **Request**
 
   ```
