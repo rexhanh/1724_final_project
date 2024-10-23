@@ -8,6 +8,8 @@ We will build a tool similar to Ollama called rustllama, which helps run LLM loc
 
 # Objective and key features
 
+We will use `Rocket` to build APIs, and `Mistral.rs` for inference, we might use `sqlite` to handle database related tasks.
+
 ## Objective 1: `rustllama serve`
 
 This command will start serving APIs at http://locahost:11435
@@ -41,7 +43,8 @@ This command will start serving APIs at http://locahost:11435
         {
             "name":"llama3.2",
             "modified_at": "2024-10-04T14:56:49.277302595-07:00",
-            "format":"gguf"
+            "format":"gguf",
+            "path":"path/to/model.gguf"
         }
         ...
     ]
@@ -59,6 +62,7 @@ This command will start serving APIs at http://locahost:11435
    Returns 200 OK if successful, else 404 if the model does not exist.
 
 4. Chat
+
    Generate the next chat message with a model managed by rustllama.
 
 - `model`: (required) the model name
