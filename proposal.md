@@ -44,13 +44,17 @@ Do you mean APLE, AAPL, AAPL34.SAO, APC.DEX, APC.FRK?
 
 We will also make a GUI of this tool using [ratatui](https://ratatui.rs/), starting GUI by using
 `$finance --gui`
-The GUI will mainly contains two part, on the left will be a list view, on the right will be a chart view. At the top, there will be a search bar that user can add and search for the stock/ETF/index, and it will show up in list view on the left side.
-**Will use tui-textarea/tui-input and **
+
+The GUI will mainly contain two part, on the left will be a list view, on the right will be a chart view. At the top, there will be a search bar that user can add and search for the stock/ETF/index, and it will show up in list view on the left side.
+
+**Will use tui-textarea/tui-input**
 
 The list view contains multiple stock/ETF/index, showing its name, current price, and change.
+
 **Will use List widget from ratatui and popup from ratatui**
 
 On the right will be a chart showing daily moving, or the user can choose to show chart of a month, six month or a year.
+
 **Will use Chart widget from ratatui**
 
 On the bottom of the chart will show the open, high, low, previous close, change, and change percent.
