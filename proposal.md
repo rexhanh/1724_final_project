@@ -1,67 +1,70 @@
-# Motivation
+# Motivation  
+We are motivated to develop a tool in rust for Linkedin job posting analysis. 
+As job seekers and Linkedin users ourselves, we find it hard to keep track 
+of all details of jobs postings while developing an overall understanding 
+of the job market; so we are motivated to develop a 
+tool to tackle these problems. <br>
+
+Specifically, our tool provides a summary table of job postings, each column is 
+a job detail/feature (e.g. salary) that supports ordering. So that users can easily
+find jobs that align with their skills and needs. <br>
+
+Also, the tool provides visualizaiton (e.g. frequency of skills needed)that communicate 
+the overall job market to our user directly. So that users can quickly understand what the market 
+needs and improve skills accordingly. <br>
+
+Lastly, we think rust is an good programming language choice for our tool. With its support for concurrency and asynchronous request, 
+we can make requests to and gather information from large amounts job pages efficiently. 
 
 # Objective and key features
 
-Our objecttive is to make an app that shows a view of stocks' latest prices, open, high, low, previous close, change, and change percent. We did not find an API that is free without delay, but we find an API that is free but with some delay.
-User will be able to use this as a CLI tool, and also a GUI version of it.
-CLI usage.
-We will be using stock market data API from [alpha vantage](https://www.alphavantage.co/documentation/)
-We have obtained an API key.
+The job tool crawls, parse and summarizes Linkedin job informaiton, based on user LinkedIn profile and job interest, so that the user can quickly grasp knowledge of the overall job market without the overhead of processing huge amount of data themselves.
 
-### Basic CLI usage
+## Feature1:
+authenticate user login to LinkedIn
+## Feature2:
+allow user search job postings with criteria
+## Feature3:
+generate a summary table, each column is a job feature (location, company name, salaries), 
+support ordering (alphabetic for text)
 
-Getting latest price of a stock/ETF/index
+## Feature4:
+visual insights, e.g. freqency chart of most wanted skills
 
-```
-$finance --check AAPL
-{
-    "open": "229.7400",
-    "high": "233.2200",
-    "low": "229.5700",
-    "price": "231.4100",
-    "latest trading day": "2024-10-25",
-    "previous close": "230.5700",
-    "change": "0.8400",
-    "change percent": "0.3643%"
-}
-```
+## Crates to use: 
+Spider: retrieve HTML content from pages (page, AIResults, Page)
 
-If the symbol does not exist
+Spider, configuration: bypass anti-robot  
 
-```
-$finance --check AAPL1
-Symbol AAPL1 does not exit
-```
+Spider, module chrome-common, authchallengeResponse: user login to Linkedin  
 
-If finds multiple similar ones, it shows the top 5 most similar ones.
+Spider, module openai, get job search results  
 
-```
-$finance --check apple
-Do you mean APLE, AAPL, AAPL34.SAO, APC.DEX, APC.FRK?
-```
+Spider, packages, Scraper: HTML parsing  
 
-### GUI usage
+Ratatui: text user interface  
 
-We will also make a GUI of this tool using [ratatui](https://ratatui.rs/), starting GUI by using
-`$finance --gui`
-The GUI will mainly contains two part, on the left will be a list view, on the right will be a chart view. At the top, there will be a search bar that user can add and search for the stock/ETF/index, and it will show up in list view on the left side.
-**Will use tui-textarea/tui-input and **
+tokio: async tasks, works with spider website config, max-concurrent & delay-btw-request
 
-The list view contains multiple stock/ETF/index, showing its name, current price, and change.
-**Will use List widget from ratatui and popup from ratatui**
+tui-rs: for visualization in text user interface
 
-On the right will be a chart showing daily moving, or the user can choose to show chart of a month, six month or a year.
-**Will use Chart widget from ratatui**
+reqwest:request interested webpage
 
-On the bottom of the chart will show the open, high, low, previous close, change, and change percent.
+
 
 # Tentative plan
+## 1. setup initial page scraping
+handle redirect user Linkedin login i.e. feature 1<br>
+handle user job search with criteria i.e. feature 2<br>
+get page of a list of links to job postings<br>
+extract (by HTML tages or CSS selector) links to a list
 
-Early November to mid November
-Complete the command line interface part of the project. If CLI part finishes early, we will move on to GUI earlier.
+## 2. parse and store job details for analysis
+for each posting link, open the URL and parse <br>
+specific details such as location, company name, total_applicants, etc., 
+store in JSON or sqlite for analysis
 
-Mid November to early December
-Complete the GUI part of the project
+## 3. job data analysis and visualization
+feature 3 & 4
 
-Early December to mid December
-Complete the entire project, finishing the report.
+Each team member works on one of the above parts.
