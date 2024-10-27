@@ -1,10 +1,11 @@
 # Motivation
 
+Our project is inspired by one of the ideas, "Personal Finance Tracker." One of our teammates recently got into managing his stock, and after seeing the provided ideas, he decided to build an app to track his stocks. Our team gathered together because we are all interested in creating an app with Rust, and building such an app will be perfect because a stock tracking app will require a lot of design and front-end work. Since creating this project requires calling real-time stock API, we have already found a free API to ensure this project can finish on time.
+
 # Objective and key features
 
 Our objective is to make an app that shows a view of stocks' latest prices, open, high, low, previous close, change, and change percent. We did not find an API that is free without delay, but we find an API that is free but with some delay.
 User will be able to use this as a CLI tool, and also a GUI version of it.
-CLI usage.
 We will be using stock market data API from [alpha vantage](https://www.alphavantage.co/documentation/)
 We have obtained an API key.
 This app will be mainly built on **ratatui** and **reqwest**.
@@ -59,12 +60,17 @@ We will also make a GUI of this tool using [ratatui](https://ratatui.rs/).The GU
 4. On the bottom of the chart will show the open, high, low, previous close, change, and change percent.
 
 5. Search bar on the top
+
    **Will use tui-textarea/tui-input and and popup from ratatui**
+
+### Optionally
+
+We will try to add user authentication, so users can log in to track their favorate stocks.
 
 # Tentative plan
 
 **Early November to mid November**
-Complete the command line interface part of the project. If CLI part finishes early, we will move on to GUI earlier.
+Complete the command line interface part of the project. If CLI part finishes early, we will move on to developing GUI earlier.
 
 **Mid November to early December**
 Complete the GUI part of the project
