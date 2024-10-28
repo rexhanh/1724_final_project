@@ -14,57 +14,45 @@ the overall job market to our user directly. So that users can quickly understan
 needs and improve skills accordingly. <br>
 
 Lastly, we think rust is an good programming language choice for our tool. With its support for concurrency and asynchronous request, 
-we can make requests to and gather information from large amounts job pages efficiently. 
+we can make large amounts of requests to and gather job information efficiently. 
 
 # Objective and key features
 
-The job tool crawls, parse and summarizes Linkedin job informaiton, based on user LinkedIn profile and job interest, so that the user can quickly grasp knowledge of the overall job market without the overhead of processing huge amount of data themselves.
-
-## Feature1:
-authenticate user login to LinkedIn
-## Feature2:
+## Featur1:
 allow user search job postings with criteria
-## Feature3:
+
+## Feature2:
 generate a summary table, each column is a job feature (location, company name, salaries), 
 support ordering (alphabetic for text)
-
-## Feature4:
+## Feature3:
 visual insights, e.g. freqency chart of most wanted skills
 
 ## Crates to use: 
-Spider: retrieve HTML content from pages (page, AIResults, Page)
-
-Spider, configuration: bypass anti-robot  
-
-Spider, module chrome-common, authchallengeResponse: user login to Linkedin  
-
-Spider, module openai, get job search results  
-
-Spider, packages, Scraper: HTML parsing  
+Scraper: HTML parsing
 
 Ratatui: text user interface  
 
 tokio: async tasks, works with spider website config, max-concurrent & delay-btw-request
 
-tui-rs: for visualization in text user interface
-
 reqwest:request interested webpage
 
-
-
 # Tentative plan
-## 1. setup initial page scraping
-handle redirect user Linkedin login i.e. feature 1<br>
-handle user job search with criteria i.e. feature 2<br>
-get page of a list of links to job postings<br>
-extract (by HTML tages or CSS selector) links to a list
-
-## 2. parse and store job details for analysis
-for each posting link, open the URL and parse <br>
-specific details such as location, company name, total_applicants, etc., 
-store in JSON or sqlite for analysis
+## 1. async request to get job list
+request to get a list of jobs based on user searching criteria, from which 
+extract a list of job IDs (by HTML tages or CSS selector)
+example request 
+```
+https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=developer
+```
+## 2. async requests to get job details, parse and store for analysis
+for each job ID, request details at
+```
+https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/4046539572
+```
 
 ## 3. job data analysis and visualization
-feature 3 & 4
 
-Each team member works on one of the above parts.
+## 4. user interface
+allow user input job criteria, to get analysis target
+allow user view summary table (ordering, pagination, etc)
+allow user to select which graph to draw
