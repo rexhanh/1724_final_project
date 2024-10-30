@@ -31,6 +31,7 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
 
 2. A list view of stocks/ETF/index
    On the left, a list view contains user-added stock/ETF/index, showing their names, current prices, and changes.
+
    **API will be used**: https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=IBM&apikey=demo
    Example API return
 
@@ -56,6 +57,7 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
 
 3. A more detailed view on the right
    On the right, a chart showing daily movement will appear, or the user can choose to show a chart for a month, six months, or a year.
+
    **API will be used**: https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=IBM&interval=5min&apikey=demo
    Example API return
 
@@ -91,6 +93,7 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
    This is the same API as in part 2, but here will use the high, low, open, and close.
 5. Search bar & add
    You can search stock symbols and add them to the list view.
+
    **API will be used**:
    https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=tesco&apikey=demo
    Example API return:
@@ -119,9 +122,11 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
 
 6. News & Sentiment
    Show a piece of news about the stock
+
    **API will be used**:
    https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers=AAPL&apikey=demo
    Example API return(shorter):
+
    ```
    {
       ...
@@ -145,10 +150,13 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
       ]
    }
    ```
+
    We will utilize to show the user relevant news, and the source, a short summary and an image if there is one.
    **Will use ratatui-image for image rendering**
+
 7. Analytics insights
    Show top gainers and losers at the bottom of the app
+
    **API will be used**:
    https://www.alphavantage.co/query?function=ANALYTICS_FIXED_WINDOW&SYMBOLS=AAPL,MSFT,IBM&RANGE=2023-07-01&RANGE=2023-08-31&INTERVAL=DAILY&OHLC=close&CALCULATIONS=MEAN,STDDEV,CORRELATION&apikey=demo
 
