@@ -33,6 +33,7 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
    On the left, a list view contains user-added stock/ETF/index, showing their names, current prices, and changes.
 
    **API will be used**: https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=IBM&apikey=demo
+
    Example API return
 
    ```
@@ -59,6 +60,7 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
    On the right, a chart showing daily movement will appear, or the user can choose to show a chart for a month, six months, or a year.
 
    **API will be used**: https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=IBM&interval=5min&apikey=demo
+
    Example API return
 
    ```
@@ -96,6 +98,7 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
 
    **API will be used**:
    https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=tesco&apikey=demo
+
    Example API return:
 
    ```
@@ -125,6 +128,7 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
 
    **API will be used**:
    https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers=AAPL&apikey=demo
+
    Example API return(shorter):
 
    ```
