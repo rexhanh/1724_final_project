@@ -27,9 +27,11 @@ This app will be mainly built on **ratatui** and **request**
 We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). The GUI will mainly consist of two parts: a list view on the left and a chart view on the right. At the top, there will be a search bar that users can add and search for the stock/ETF/index, which will show up in the list view on the left side.
 
 1. Starting GUI
+
    `$finance --gui`
 
 2. A list view of stocks/ETF/index
+
    On the left, a list view contains user-added stock/ETF/index, showing their names, current prices, and changes.
 
    **API will be used**: https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=IBM&apikey=demo
@@ -54,9 +56,11 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
    ```
 
    So we will use the price, change, change percent from the returned object.
+
    **Will use List widget from ratatui**
 
-3. A more detailed view on the right
+3. A more detailed view on the right: Chart
+
    On the right, a chart showing daily movement will appear, or the user can choose to show a chart for a month, six months, or a year.
 
    **API will be used**: https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=IBM&interval=5min&apikey=demo
@@ -87,13 +91,17 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
    ```
 
    We will be utilizing the dates, and the close price to render a chart.
+
    **Will use Chart widget from ratatui**
 
 4. A more detailed view on the right: show more detail about that stock/ETF/index
+
    The bottom of the chart will show the open, high, low, previous close, change, and change percent.
    **API will be used**: https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=IBM&apikey=demo
    This is the same API as in part 2, but here will use the high, low, open, and close.
+
 5. Search bar & add
+
    You can search stock symbols and add them to the list view.
 
    **API will be used**:
@@ -121,9 +129,11 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
    ```
 
    We will be able to utilize the bestMatches to show a list of best matched stock/ETF/index.
+
    **Will use tui-textarea/tui-input and popup from ratatui**
 
 6. News & Sentiment
+
    Show a piece of news about the stock
 
    **API will be used**:
@@ -156,9 +166,11 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
    ```
 
    We will utilize to show the user relevant news, and the source, a short summary and an image if there is one.
+
    **Will use ratatui-image for image rendering**
 
 7. Analytics insights
+
    Show top gainers and losers at the bottom of the app
 
    **API will be used**:
