@@ -97,6 +97,7 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
 4. A more detailed view on the right: show more detail about that stock/ETF/index
 
    The bottom of the chart will show the open, high, low, previous close, change, and change percent.
+
    **API will be used**: https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=IBM&apikey=demo
    This is the same API as in part 2, but here will use the high, low, open, and close.
 
@@ -165,7 +166,7 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
    }
    ```
 
-   We will utilize to show the user relevant news, and the source, a short summary and an image if there is one.
+   We will utilize this response to show the user relevant news, and the source, a short summary and an image if there is one.
 
    **Will use ratatui-image for image rendering**
 
