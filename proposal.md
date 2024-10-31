@@ -1,6 +1,6 @@
-Team Members:
-Yuanrong Han 1010787409
-Lin Sheng 1010798585
+**Team Members**:  
+Yuanrong Han 1010787409  
+Lin Sheng 1010798585  
 Ziyue Gong 1005710740
 
 <!-- API Key: 08GJX8AILBFV6R98
@@ -244,8 +244,11 @@ We will try to add user authentication so users can log in to track their favori
 # Tentative plan
 ## Work breakdown
 **Yuanrong**: will do part 2 list view and part 5 search bar  
+
 **Lin**: will do part 4 details and part 6 news  
+
 **Ziyue**: will part 7 data analytics  
+
 Implementation ideas mentioned above in feature section
 ## Tentative timeline
 **Early November to mid-November**
