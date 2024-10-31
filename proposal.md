@@ -172,21 +172,82 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
 
 7. Analytics insights
 
-   Show top gainers and losers at the bottom of the app
+   **(1) General: Show top gainers and losers**  
+   list name, percent of change, current price at the bottom of the app  
 
-   **API will be used**:
-   https://www.alphavantage.co/query?function=ANALYTICS_FIXED_WINDOW&SYMBOLS=AAPL,MSFT,IBM&RANGE=2023-07-01&RANGE=2023-08-31&INTERVAL=DAILY&OHLC=close&CALCULATIONS=MEAN,STDDEV,CORRELATION&apikey=demo
+   API will be used:
+   https://www.alphavantage.co/query?function=TOP_GAINERS_LOSERS&apikey=demo 
+
+   Example API return:
+   ```
+   "top_gainers": [
+        …
+        {
+            "ticker": "FOXXW",
+            "price": "0.2899",
+            "change_amount": "0.1773",
+            "change_percentage": "157.46%",
+            "volume": "7679"
+        },
+        …
+    ]
+
+   ```
+
+   **(2) For target stock: technical analysis with SMA**  
+   x-axis: time, y-axis: simple moving average (SMA) of price. Plot 2 SMA time series(long and short term) curves, intersection indicate suggested buy or sell time point. Change API Paramter `time_period` to get SMA series of different terms.
+
+   API will be used:  https://www.alphavantage.co/query?function=SMA&symbol=IBM&interval=weekly&time_period=10&series_type=open&apikey=demo  
+
+   Example API return:
+   ```
+   "Technical Analysis: SMA": {
+        …
+        "2024-10-30": {
+            "SMA": "216.0040"
+        },
+        "2024-10-25": {
+            "SMA": "213.8380"
+        },
+        …
+   }
+
+   ```
+   **(3) For target stock: fundamental analysis**  
+   display criticla info of the issuing company, selected from
+   API call  
+   https://www.alphavantage.co/query?function=OVERVIEW&symbol=IBM&apikey=demo  
+
+   Example API return: 
+   ```
+   {
+    …
+    "Symbol": "IBM",
+    "Industry": "COMPUTER & OFFICE EQUIPMENT",
+    "MarketCapitalization": "196121592000",
+    "EBITDA": "14382000000", // earning before interest, tax, 
+    "PERatio": "30.67", 
+     "BookValue": "26.47",
+    "DividendPerShare": "6.66",
+    "DividendYield": "0.0317",
+    "EPS": "6.86", // earning per sahre
+    "Beta": "0.697",
+    …
+    }
+
+   ```
 
 ### Optionally
 
 We will try to add user authentication so users can log in to track their favorite stocks.
 
 # Tentative plan
-
-Yuanrong: will do part 2 list view and part 5 search bar
-Lin: will do part 4 details and part 6 news
-Ziyue: will part 7 data analytics: might use a different API and Rust crates
-
+## Work breakdown
+**Yuanrong**: will do part 2 list view and part 5 search bar  
+**Lin**: will do part 4 details and part 6 news  
+**Ziyue**: will part 7 data analytics  
+Implementation ideas mentioned above in feature section
+## Tentative timeline
 **Early November to mid-November**
 Complete the basic GUI component: search bar, chart, and stock details.
 
