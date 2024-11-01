@@ -8,35 +8,54 @@ https://www.alphavantage.co/documentation/ -->
 
 # Motivation
 
-Our project is inspired by one of the ideas, "Personal Finance Tracker." One of our teammates recently got into managing his stock, and after seeing the provided ideas, he decided to build an app to track his stocks.
+Our project is inspired by one of the ideas, 
+"Personal Finance Tracker." One of our teammates recently 
+got into managing his stock, and after seeing the provided ideas, 
+he decided to build an app to track his stocks.
 
-Our team gathered together because we are all interested in creating an app with Rust, and building such an app will be perfect because a stock tracking app will require a lot of design and front-end work, and we would like to explore frontend built in Rust with text user interface. Since creating this project requires calling real-time stock API, we have already found a free API to ensure this project can finish on time.
+Our team gathered together because we are all interested in exploring Rust frontend 
+with text user interface. Also, we think such project is feasible within the 
+time scope, as we have already found a free API [alpha vantage](https://www.alphavantage.co/documentation/) 
+that provides stock market data (with some delay). We have acquired a api key and tried 
+several api calls.
 
-​​Lastly, we think Rust is a good programming language choice for our tool. With its support for concurrency and asynchronous requests, we can make large amounts of requests and gather stock information efficiently.
+​​Lastly, we think Rust is a good programming language choice for our tool. 
+With its support for concurrency and asynchronous requests, we can make large amounts of 
+requests and gather stock information efficiently.
 
 # Objective and key features
+## Objective
+Our stock tracker allows users to search for stock, 
+providing both list and detailed views, with relevant news 
+and basic data insights for users to better interpret the 
+stock price in context.   
 
-Our stock tracker allows users to search for stock, providing both list and detailed views, with relevant news and basic data insights for users to better interpret the stock price in context. The list view shows the latest stock prices, open, high, low, previous close, change, and change percent; the detailed view shows a time series change of stock price across time. We did not find an API that was free without delay, but we found one that was free but with some delay.
-Users will be able to use this as a GUI version of it.
-We will be using stock market data API from [alpha vantage](https://www.alphavantage.co/documentation/)
-We have obtained an API key.
+- The list view shows the latest stock prices, open, high, low, previous close, change, and change percent;   
+- The detail view shows a time series change of stock price across time. 
+- The analytics insights is part of the detail view for a target stock. 
+It provides foundamental (issuer info) and technical analysis (with simple moving average of stock price) for a target stock.
+- A banner at bottom of the page showing a list of top gainers and losers as general advice.  
+- Users will be able to use this as a GUI version of it.
+
 This app will be mainly built on **ratatui** and **request**
 
-### GUI usage
-
-We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). The GUI will mainly consist of two parts: a list view on the left and a chart view on the right. At the top, there will be a search bar that users can add and search for the stock/ETF/index, which will show up in the list view on the left side.
-
-1. Starting GUI
-
+## Features
+1. GUI support
+- We will create a GUI for this tool using [ratatui](https://ratatui.rs/). 
+- Start GUI with 
    `$finance --gui`
+- GUI layout
+The GUI will mainly consist of two parts: a list view on the left and 
+a detail view with analytics on the right. At the top, a search bar that users can add and search for the stock/ETF/index, which will show up in the list view on the left side.
+At the bottom, a banner shows top gainers and losers. 
 
 2. A list view of stocks/ETF/index
 
-   On the left, a list view contains user-added stock/ETF/index, showing their names, current prices, and changes.
+   - On the left, a list view contains user-added stock/ETF/index, showing their names, current prices, and changes.
 
-   **API will be used**: https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=IBM&apikey=demo
+   - **API will be used**: https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=IBM&apikey=demo
 
-   Example API return
+   - Example API return
 
    ```
    {
@@ -55,17 +74,15 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
    }
    ```
 
-   So we will use the price, change, change percent from the returned object.
-
-   **Will use List widget from ratatui**
+   we will use the price, change, change percent from the returned object, and List widget from ratatui for display
 
 3. A more detailed view on the right: Chart
 
-   On the right, a chart showing daily movement will appear, or the user can choose to show a chart for a month, six months, or a year.
+   - On the right, a chart showing daily movement will appear, or the user can choose to show a chart for a month, six months, or a year.
 
-   **API will be used**: https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=IBM&interval=5min&apikey=demo
+   - **API will be used**: https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=IBM&interval=5min&apikey=demo
 
-   Example API return
+   - Example API return
 
    ```
    {
@@ -90,25 +107,23 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
    }
    ```
 
-   We will be utilizing the dates, and the close price to render a chart.
-
-   **Will use Chart widget from ratatui**
+   We will be utilizing the dates, and the close price to render a chart, use Chart widget from ratatui
 
 4. A more detailed view on the right: show more detail about that stock/ETF/index
 
-   The bottom of the chart will show the open, high, low, previous close, change, and change percent.
+   - The bottom of the chart will show the open, high, low, previous close, change, and change percent.
 
-   **API will be used**: https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=IBM&apikey=demo
+   - **API will be used**: https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=IBM&apikey=demo
    This is the same API as in part 2, but here will use the high, low, open, and close.
 
 5. Search bar & add
 
-   You can search stock symbols and add them to the list view.
+   - You can search stock symbols and add them to the list view.
 
-   **API will be used**:
+   - **API will be used**:
    https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=tesco&apikey=demo
 
-   Example API return:
+   - Example API return:
 
    ```
    {
@@ -129,18 +144,16 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
    }
    ```
 
-   We will be able to utilize the bestMatches to show a list of best matched stock/ETF/index.
-
-   **Will use tui-textarea/tui-input and popup from ratatui**
+   - We will be able to utilize the bestMatches to show a list of best matched stock/ETF/index, Will use tui-textarea/tui-input and popup from ratatui
 
 6. News & Sentiment
 
-   Show a piece of news about the stock
+   - Show a piece of news about the stock
 
-   **API will be used**:
+   - **API will be used**:
    https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers=AAPL&apikey=demo
 
-   Example API return(shorter):
+   - Example API return(shorter):
 
    ```
    {
@@ -166,19 +179,17 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
    }
    ```
 
-   We will utilize this response to show the user relevant news, and the source, a short summary and an image if there is one.
-
-   **Will use ratatui-image for image rendering**
+   - We will utilize this response to show the user relevant news, and the source, a short summary and an image if there is one, will use ratatui-image for image rendering
 
 7. Analytics insights
 
    **(1) General: Show top gainers and losers**  
-   list name, percent of change, current price at the bottom of the app  
+   - list name, percent of change, current price at the bottom of the app  
 
-   API will be used:
+   - API will be used:
    https://www.alphavantage.co/query?function=TOP_GAINERS_LOSERS&apikey=demo 
 
-   Example API return:
+   - Example API return:
    ```
    "top_gainers": [
         …
@@ -195,11 +206,11 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
    ```
 
    **(2) For target stock: technical analysis with SMA**  
-   x-axis: time, y-axis: simple moving average (SMA) of price. Plot 2 SMA time series(long and short term) curves, intersection indicate suggested buy or sell time point. Change API Paramter `time_period` to get SMA series of different terms.
+   - x-axis: time, y-axis: simple moving average (SMA) of price. Plot 2 SMA time series(long and short term) curves, intersection indicate suggested buy or sell time point. Change API Paramter `time_period` to get SMA series of different terms.
 
-   API will be used:  https://www.alphavantage.co/query?function=SMA&symbol=IBM&interval=weekly&time_period=10&series_type=open&apikey=demo  
+   - API will be used:  https://www.alphavantage.co/query?function=SMA&symbol=IBM&interval=weekly&time_period=10&series_type=open&apikey=demo  
 
-   Example API return:
+   - Example API return:
    ```
    "Technical Analysis: SMA": {
         …
@@ -214,11 +225,11 @@ We will also create a GUI for this tool using [ratatui](https://ratatui.rs/). Th
 
    ```
    **(3) For target stock: fundamental analysis**  
-   display criticla info of the issuing company, selected from
+   - display criticla info of the issuing company, selected from
    API call  
    https://www.alphavantage.co/query?function=OVERVIEW&symbol=IBM&apikey=demo  
 
-   Example API return: 
+   - Example API return: 
    ```
    {
     …
@@ -243,11 +254,11 @@ We will try to add user authentication so users can log in to track their favori
 
 # Tentative plan
 ## Work breakdown
-**Yuanrong**: will do part 2 list view and part 5 search bar  
+**Yuanrong**: will do part 2 list view and part 5 search bar, frontend and backend  
 
-**Lin**: will do part 4 details and part 6 news  
+**Lin**: will do part 4 details and part 6 news, frontend and backend   
 
-**Ziyue**: will part 7 data analytics  
+**Ziyue**: will part 7 data analytics, frontend and backend   
 
 Implementation ideas mentioned above in feature section
 ## Tentative timeline
