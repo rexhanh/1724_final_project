@@ -256,7 +256,7 @@ We will try to add user authentication so users can log in to track their favori
 ## Work breakdown
 **Yuanrong**: will do part 2 list view and part 5 search bar, frontend and backend  
 
-**Lin**: will do part 4 details and part 6 news, frontend and backend   
+**Lin**: will do part 3 charts, part 4 details and, part 6 news, frontend and backend   
 
 **Ziyue**: will part 7 data analytics, frontend and backend   
 
