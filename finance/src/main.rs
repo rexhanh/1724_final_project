@@ -11,9 +11,14 @@ use ratatui::{
     },
     DefaultTerminal,
 };
+enum Screen {
+    Stock,
+    Search
+}
 struct App {
     should_quit: bool,
     stock_list: StockList,
+    screen: Screen,
 }
 
 struct Stock {
@@ -65,6 +70,7 @@ impl App {
         Self {
             should_quit: false,
             stock_list,
+            screen: Screen::Stock,
         }
     }
 
@@ -86,6 +92,13 @@ impl App {
             KeyCode::Char('q') | KeyCode::Esc => self.should_quit = true,
             KeyCode::Down => self.select_next(),
             KeyCode::Up => self.select_previous(),
+            KeyCode::Left => self.select_none(),
+            KeyCode::Char('a') => {
+                self.screen = Screen::Search;
+            }
+            KeyCode::BackTab | KeyCode::Char('h') => {
+                self.screen = Screen::Stock;
+            }
             _ => {}
         }
     }
@@ -97,30 +110,18 @@ impl App {
     fn select_previous(&mut self) {
         self.stock_list.state.select_previous();
     }
+
+    fn select_none(&mut self) {
+        self.stock_list.state.select(None);
+    }
 }
 
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let [header_area, main_area, _footer_area] = Layout::vertical([
-            Constraint::Length(2),
-            Constraint::Fill(1),
-            Constraint::Length(1),
-        ])
-        .areas(area);
-
-        // let [list_area, item_area] =
-        // Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(main_area);
-        let [list_area, item_area] =
-            Layout::horizontal([Constraint::Percentage(10), Constraint::Percentage(90)])
-                .areas(main_area);
-
-        let [_chart_area, info_area] =
-            Layout::vertical([Constraint::Percentage(70), Constraint::Percentage(30)])
-                .areas(item_area);
-        App::render_header(header_area, buf);
-        self.render_list(list_area, buf);
-        self.render_selected_item(info_area, buf);
-        self.render_chart(_chart_area, buf);
+        match self.screen {
+            Screen::Stock => self.render_stock_screen(area, buf),
+            Screen::Search => self.render_search_screen(area, buf),
+        }
     }
 }
 
@@ -173,6 +174,47 @@ impl App {
             .border_set(symbols::border::THICK);
 
         Paragraph::new("Chart goes here...")
+            .block(block)
+            .render(area, buf);
+    }
+
+    fn render_footer(&self, area: Rect, buf: &mut Buffer) {
+        Paragraph::new("Use ↓↑ to move, ← to unselect, s to search, q to quit")
+            .centered()
+            .render(area, buf);
+    }
+
+    fn render_stock_screen(&mut self, area: Rect, buf: &mut Buffer) {
+        let [header_area, main_area, _footer_area] = Layout::vertical([
+            Constraint::Length(2),
+            Constraint::Fill(1),
+            Constraint::Length(1),
+        ])
+        .areas(area);
+
+        // let [list_area, item_area] =
+        // Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(main_area);
+        let [list_area, item_area] =
+            Layout::horizontal([Constraint::Percentage(10), Constraint::Percentage(90)])
+                .areas(main_area);
+
+        let [_chart_area, info_area] =
+            Layout::vertical([Constraint::Percentage(70), Constraint::Percentage(30)])
+                .areas(item_area);
+        App::render_header(header_area, buf);
+        self.render_list(list_area, buf);
+        self.render_selected_item(info_area, buf);
+        self.render_chart(_chart_area, buf);
+        self.render_footer(_footer_area, buf);
+    }
+
+    fn render_search_screen(&self, area: Rect, buf: &mut Buffer) {
+        let block = Block::new()
+            .title(Line::raw("Search").centered())
+            .borders(Borders::ALL)
+            .border_set(symbols::border::THICK);
+
+        Paragraph::new("Search goes here...")
             .block(block)
             .render(area, buf);
     }
