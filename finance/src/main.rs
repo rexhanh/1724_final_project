@@ -13,7 +13,7 @@ use ratatui::{
 };
 enum Screen {
     Stock,
-    Search
+    Search,
 }
 struct App {
     should_quit: bool,
@@ -62,6 +62,8 @@ impl Default for App {
 impl App {
     fn new() -> Self {
         let mut stock_list = StockList::new();
+        // ! TEST ONLY
+        // TODO Fetch the data from the API
         stock_list.add_stock(Stock::new("AAPL", 129.41));
         stock_list.add_stock(Stock::new("GOOGL", 1867.88));
         stock_list.add_stock(Stock::new("MSFT", 244.49));
@@ -78,13 +80,17 @@ impl App {
         while !self.should_quit {
             terminal.draw(|frame| frame.render_widget(&mut self, frame.area()))?;
             if let Event::Key(key) = event::read()? {
-                self.handle_key(key);
+                match self.screen {
+                    Screen::Stock => self.handle_stock_screen_key(key),
+                    Screen::Search => self.handle_search_screen_key(key),
+                }
+                // self.handle_key(key);
             };
         }
         Ok(())
     }
 
-    fn handle_key(&mut self, key: KeyEvent) {
+    fn handle_stock_screen_key(&mut self, key: KeyEvent) {
         if key.kind != KeyEventKind::Press {
             return;
         }
@@ -93,10 +99,20 @@ impl App {
             KeyCode::Down => self.select_next(),
             KeyCode::Up => self.select_previous(),
             KeyCode::Left => self.select_none(),
-            KeyCode::Char('a') => {
+            KeyCode::Char('s') => {
                 self.screen = Screen::Search;
             }
-            KeyCode::BackTab | KeyCode::Char('h') => {
+            _ => {}
+        }
+    }
+
+    fn handle_search_screen_key(&mut self, key: KeyEvent) {
+        if key.kind != KeyEventKind::Press {
+            return;
+        }
+        match key.code {
+            KeyCode::Char('q') | KeyCode::Esc => self.should_quit = true,
+            KeyCode::Backspace | KeyCode::Char('h') => {
                 self.screen = Screen::Stock;
             }
             _ => {}
@@ -119,12 +135,14 @@ impl App {
 impl Widget for &mut App {
     fn render(self, area: Rect, buf: &mut Buffer) {
         match self.screen {
+            // TODO Add Screens HERE
             Screen::Stock => self.render_stock_screen(area, buf),
             Screen::Search => self.render_search_screen(area, buf),
         }
     }
 }
 
+// Implement for the rendering
 impl App {
     fn render_header(area: Rect, buf: &mut Buffer) {
         Paragraph::new("Finance").centered().render(area, buf);
@@ -144,6 +162,8 @@ impl App {
 
         StatefulWidget::render(list, area, buf, &mut self.stock_list.state);
     }
+    // TODO Need to implement the rendering of the selected item
+    // Currently, it just shows the name and price of the selected item
     fn render_selected_item(&self, area: Rect, buf: &mut Buffer) {
         // We get the info depending on the item's state.
         let info = if let Some(i) = self.stock_list.state.selected() {
@@ -167,7 +187,7 @@ impl App {
             .render(area, buf);
     }
     fn render_chart(&self, area: Rect, buf: &mut Buffer) {
-        // TODO
+        // TODO Add Chart rendering here
         let block = Block::new()
             .title(Line::raw("Chart").centered())
             .borders(Borders::ALL)
@@ -192,8 +212,6 @@ impl App {
         ])
         .areas(area);
 
-        // let [list_area, item_area] =
-        // Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(main_area);
         let [list_area, item_area] =
             Layout::horizontal([Constraint::Percentage(10), Constraint::Percentage(90)])
                 .areas(main_area);
