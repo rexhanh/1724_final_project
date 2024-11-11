@@ -111,11 +111,16 @@ impl Widget for &mut App {
         // let [list_area, item_area] =
         // Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(main_area);
         let [list_area, item_area] =
-            Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
+            Layout::horizontal([Constraint::Percentage(10), Constraint::Percentage(90)])
                 .areas(main_area);
+
+        let [_chart_area, info_area] =
+            Layout::vertical([Constraint::Percentage(70), Constraint::Percentage(30)])
+                .areas(item_area);
         App::render_header(header_area, buf);
         self.render_list(list_area, buf);
-        self.render_selected_item(item_area, buf);
+        self.render_selected_item(info_area, buf);
+        self.render_chart(_chart_area, buf);
     }
 }
 
@@ -150,14 +155,25 @@ impl App {
         // We show the list item's info under the list in this paragraph
         let block = Block::new()
             .title(Line::raw("Stock Info").centered())
-            .borders(Borders::TOP)
-            .border_set(symbols::border::EMPTY)
+            .borders(Borders::ALL)
+            .border_set(symbols::border::THICK)
             .padding(Padding::horizontal(1));
 
         // We can now render the item info
         Paragraph::new(info)
             .block(block)
             .wrap(Wrap { trim: false })
+            .render(area, buf);
+    }
+    fn render_chart(&self, area: Rect, buf: &mut Buffer) {
+        // TODO
+        let block = Block::new()
+            .title(Line::raw("Chart").centered())
+            .borders(Borders::ALL)
+            .border_set(symbols::border::THICK);
+
+        Paragraph::new("Chart goes here...")
+            .block(block)
             .render(area, buf);
     }
 }
