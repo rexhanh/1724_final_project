@@ -12,30 +12,9 @@ use ratatui::{
     DefaultTerminal, Frame,
 };
 mod model;
-pub use model::{App, InputMode, Quote, Screen, SearchList, SearchQuote, StockList};
-// const API_KEY: &str = "08GJX8AILBFV6R98";
-
-fn fetch_stock(stock: &str) -> Result<Quote, reqwest::Error> {
-    let url = String::from("https://financialmodelingprep.com/api/v3/quote/") + stock;
-    let body = reqwest::blocking::Client::new()
-        .get(url)
-        .query(&[("apikey", "uilFVDFWvPNNFgPHkN47tl1vGeusng0H")])
-        .send()?
-        .json::<Vec<Quote>>()?;
-    Ok(body[0].clone())
-    //
-    // reqwest::blocking::Client::new()
-    //     .get("https://www.alphavantage.co/query")
-    //     .query(&[
-    //         ("function", "GLOBAL_QUOTE"),
-    //         ("symbol", "IBM"),
-    //         ("apikey", "demo"),
-    //     ])
-    //     .send()?
-    //     .json::<GlobalQuote>()
-    //     .map(|body| body.global_quote)
-    //
-}
+pub use model::{App, InputMode, Quote, Screen, SearchList, StockList};
+mod utils;
+pub use utils::{fetch_search_result, fetch_stock};
 
 impl StockList {
     fn new() -> Self {
@@ -44,7 +23,6 @@ impl StockList {
             state: ListState::default(),
         }
     }
-    #[allow(dead_code)]
     fn add_stock(&mut self, stock: Quote) {
         self.stocks.push(stock);
     }
@@ -69,13 +47,6 @@ impl App {
     fn new() -> Self {
         let stock_list = StockList::new();
         let search_list = SearchList::new();
-        // ! TEST ONLY
-        // TODO Fetch the data from the API
-        // stock_list.add_stock(Stock::new("AAPL"));
-        // stock_list.add_stock(Stock::new("GOOGL"));
-        // stock_list.add_stock(Stock::new("MSFT"));
-        // stock_list.add_stock(Stock::new("AMZN"));
-        // stock_list.add_stock(Stock::new("TSLA"));
         Self {
             should_quit: false,
             stock_list,
@@ -88,21 +59,13 @@ impl App {
     }
 
     pub fn run(mut self, mut terminal: DefaultTerminal) -> Result<()> {
-        // self.stock_list.add_stock(fetch_stock("TSLA").unwrap());
-
         while !self.should_quit {
-            // terminal.draw(|frame| frame.render_widget(&mut self, frame.area()))?;
             terminal.draw(|frame| self.draw(frame))?;
-            // match self.input_mode {
-            //     InputMode::Normal => {}
-            //     InputMode::Editing => terminal.show_cursor()?,
-            // }
             if let Event::Key(key) = event::read()? {
                 match self.screen {
                     Screen::Stock => self.handle_stock_screen_key(key),
                     Screen::Search => self.handle_search_screen_key(key),
                 }
-                // self.handle_key(key);
             };
         }
         Ok(())
@@ -196,13 +159,15 @@ impl App {
     }
 }
 
+// Implementaion for screen rendering
+// Each screen will render components differently
 impl App {
+    // Main draw function, this is called in the loop
     fn draw(&mut self, frame: &mut Frame) {
         match self.screen {
             Screen::Stock => self.draw_stock_screen(frame),
             Screen::Search => self.draw_search_screen(frame),
         }
-        // self.draw_stock_screen(frame);
     }
 
     fn draw_stock_screen(&mut self, frame: &mut Frame) {
@@ -258,7 +223,7 @@ impl App {
     }
 }
 
-// Implement for the rendering
+// Implementaation for each of the rendering
 impl App {
     fn render_header(area: Rect, buf: &mut Buffer) {
         Paragraph::new("Finance").centered().render(area, buf);
@@ -421,7 +386,7 @@ impl App {
     fn submit_message(&mut self, _message: String) {
         // If fetch successful, update the search list
         // If fetch failed, set the search list to empty
-        match self.fetch_search_result(&_message) {
+        match fetch_search_result(&_message) {
             Ok(result) => {
                 self.search_list.stocks = result;
             }
@@ -429,26 +394,8 @@ impl App {
                 self.search_list.stocks = vec![];
             }
         }
-        // self.fetch_search_result();
         self.input.clear();
         self.reset_cursor();
         self.input_mode = InputMode::Normal;
-    }
-}
-
-// Implementation of Fetching
-// Need to use blocking, ratatui is not async
-impl App {
-    fn fetch_search_result(&mut self, stock: &str) -> Result<Vec<SearchQuote>> {
-        let body = reqwest::blocking::Client::new()
-            .get("https://financialmodelingprep.com/api/v3/search")
-            .query(&[
-                ("query", stock),
-                ("limit", "10"),
-                ("apikey", "uilFVDFWvPNNFgPHkN47tl1vGeusng0H"),
-            ])
-            .send()?
-            .json::<Vec<SearchQuote>>()?;
-        Ok(body)
     }
 }
