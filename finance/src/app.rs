@@ -11,41 +11,9 @@ use ratatui::{
     },
     DefaultTerminal, Frame,
 };
-use serde::{Deserialize, Serialize};
-enum Screen {
-    Stock,
-    Search,
-}
-enum InputMode {
-    Normal,
-    Editing,
-}
-pub struct App {
-    should_quit: bool,
-    stock_list: StockList,
-    screen: Screen,
-    input_mode: InputMode,
-    input: String,
-    character_index: usize,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct Quote {
-    symbol: String,
-    name: String,
-    price: f32,
-    #[serde(rename = "changesPercentage")]
-    changepct: f32,
-    open: f32,
-    dayLow: f32,
-    dayHigh: f32,
-}
-
-struct StockList {
-    stocks: Vec<Quote>,
-    state: ListState,
-}
-const API_KEY: &str = "08GJX8AILBFV6R98";
+mod model;
+pub use model::{App, InputMode, Quote, Screen, SearchList, SearchQuote, StockList};
+// const API_KEY: &str = "08GJX8AILBFV6R98";
 
 fn fetch_stock(stock: &str) -> Result<Quote, reqwest::Error> {
     let url = String::from("https://financialmodelingprep.com/api/v3/quote/") + stock;
@@ -55,6 +23,7 @@ fn fetch_stock(stock: &str) -> Result<Quote, reqwest::Error> {
         .send()?
         .json::<Vec<Quote>>()?;
     Ok(body[0].clone())
+    //
     // reqwest::blocking::Client::new()
     //     .get("https://www.alphavantage.co/query")
     //     .query(&[
@@ -65,6 +34,7 @@ fn fetch_stock(stock: &str) -> Result<Quote, reqwest::Error> {
     //     .send()?
     //     .json::<GlobalQuote>()
     //     .map(|body| body.global_quote)
+    //
 }
 
 impl StockList {
@@ -74,9 +44,18 @@ impl StockList {
             state: ListState::default(),
         }
     }
-
+    #[allow(dead_code)]
     fn add_stock(&mut self, stock: Quote) {
         self.stocks.push(stock);
+    }
+}
+
+impl SearchList {
+    fn new() -> Self {
+        Self {
+            stocks: Vec::new(),
+            state: ListState::default(),
+        }
     }
 }
 
@@ -89,6 +68,7 @@ impl Default for App {
 impl App {
     fn new() -> Self {
         let stock_list = StockList::new();
+        let search_list = SearchList::new();
         // ! TEST ONLY
         // TODO Fetch the data from the API
         // stock_list.add_stock(Stock::new("AAPL"));
@@ -99,6 +79,7 @@ impl App {
         Self {
             should_quit: false,
             stock_list,
+            search_list,
             screen: Screen::Stock,
             input_mode: InputMode::Normal,
             input: String::new(),
@@ -147,13 +128,6 @@ impl App {
         if key.kind != KeyEventKind::Press {
             return;
         }
-        // match key.code {
-        //     KeyCode::Char('q') | KeyCode::Esc => self.should_quit = true,
-        //     KeyCode::Backspace | KeyCode::Char('h') => {
-        //         self.screen = Screen::Stock;
-        //     }
-        //     _ => {}
-        // }
         match self.input_mode {
             InputMode::Normal => match key.code {
                 KeyCode::Char('q') | KeyCode::Esc => self.should_quit = true,
@@ -163,11 +137,15 @@ impl App {
                 KeyCode::Char('i') => {
                     self.input_mode = InputMode::Editing;
                 }
+                KeyCode::Down => self.select_next_search(),
+                KeyCode::Up => self.select_previous_search(),
+                KeyCode::Left => self.select_none_search(),
+                KeyCode::Enter => self.add_stock(),
                 _ => {}
             },
             InputMode::Editing => match key.code {
                 KeyCode::Enter => {
-                    self.submit_message();
+                    self.submit_message(self.input.clone());
                 }
                 KeyCode::Esc => {
                     self.input_mode = InputMode::Normal;
@@ -191,6 +169,30 @@ impl App {
 
     fn select_none(&mut self) {
         self.stock_list.state.select(None);
+    }
+
+    fn select_next_search(&mut self) {
+        self.search_list.state.select_next();
+    }
+
+    fn select_previous_search(&mut self) {
+        self.search_list.state.select_previous();
+    }
+    fn select_none_search(&mut self) {
+        self.search_list.state.select(None);
+    }
+    fn add_stock(&mut self) {
+        if let Some(i) = self.search_list.state.selected() {
+            let stock_symbol = self.search_list.stocks[i].clone().symbol;
+            let stock = fetch_stock(&stock_symbol);
+            match stock {
+                Ok(stock) => {
+                    self.stock_list.add_stock(stock);
+                    self.screen = Screen::Stock;
+                }
+                Err(_) => {}
+            }
+        }
     }
 }
 
@@ -225,7 +227,7 @@ impl App {
         self.render_footer(_footer_area, frame.buffer_mut());
     }
 
-    fn draw_search_screen(&self, frame: &mut Frame) {
+    fn draw_search_screen(&mut self, frame: &mut Frame) {
         let [input_area, main_area, _footer_area] = Layout::vertical([
             Constraint::Fill(1),
             Constraint::Percentage(70),
@@ -252,6 +254,7 @@ impl App {
             }
         }
         self.render_search_result(main_area, frame.buffer_mut());
+        self.render_search_footer(_footer_area, frame.buffer_mut());
     }
 }
 
@@ -320,71 +323,44 @@ impl App {
             .render(area, buf);
     }
 
-    // fn render_stock_screen(&mut self, area: Rect, buf: &mut Buffer) {
-    //     let [header_area, main_area, _footer_area] = Layout::vertical([
-    //         Constraint::Length(2),
-    //         Constraint::Fill(1),
-    //         Constraint::Length(1),
-    //     ])
-    //     .areas(area);
+    fn render_search_footer(&self, area: Rect, buf: &mut Buffer) {
+        match self.input_mode {
+            InputMode::Normal => self.render_normal_footer(area, buf),
+            InputMode::Editing => self.render_editing_footer(area, buf),
+        }
+    }
 
-    //     let [list_area, item_area] =
-    //         Layout::horizontal([Constraint::Percentage(10), Constraint::Percentage(90)])
-    //             .areas(main_area);
+    fn render_normal_footer(&self, area: Rect, buf: &mut Buffer) {
+        Paragraph::new("Use q to quit, use s return to stock screen, use i to insert")
+            .centered()
+            .render(area, buf);
+    }
 
-    //     let [_chart_area, info_area] =
-    //         Layout::vertical([Constraint::Percentage(70), Constraint::Percentage(30)])
-    //             .areas(item_area);
-    //     App::render_header(header_area, buf);
-    //     self.render_list(list_area, buf);
-    //     self.render_selected_item(info_area, buf);
-    //     self.render_chart(_chart_area, buf);
-    //     self.render_footer(_footer_area, buf);
-    // }
+    fn render_editing_footer(&self, area: Rect, buf: &mut Buffer) {
+        Paragraph::new("Use Enter to submit, use Esc to quit editting")
+            .centered()
+            .render(area, buf);
+    }
 
-    // fn render_search_screen(&self, area: Rect, buf: &mut Buffer) {
-    //     let [input_area, main_area, _footer_area] = Layout::vertical([
-    //         Constraint::Fill(1),
-    //         Constraint::Percentage(70),
-    //         Constraint::Fill(1),
-    //     ])
-    //     .areas(area);
-    //     self.render_search_input(input_area, buf);
-    //     self.render_search_result(main_area, buf);
-    // let block = Block::new()
-    //     .title(Line::raw("Search").centered())
-    //     .borders(Borders::ALL)
-    //     .border_set(symbols::border::THICK);
-
-    // Paragraph::new("Search goes here...")
-    //     .block(block)
-    //     .render(main_area, buf);
-    // }
-
-    // fn render_search_input(&self, area: Rect, buf: &mut Buffer) {
-    //     let block = Block::new()
-    //         .title(Line::raw("Search").centered())
-    //         .borders(Borders::ALL)
-    //         .border_set(symbols::border::THICK);
-
-    //     Paragraph::new(self.input.clone())
-    //         .block(block)
-    //         .render(area, buf);
-    // }
-
-    fn render_search_result(&self, area: Rect, buf: &mut Buffer) {
+    fn render_search_result(&mut self, area: Rect, buf: &mut Buffer) {
         let block = Block::new()
             .title(Line::raw("Result").centered())
             .borders(Borders::ALL)
             .border_set(symbols::border::THICK);
 
-        Paragraph::new("Search goes here...")
-            .block(block)
-            .render(area, buf);
+        let items: Vec<ListItem> = self
+            .search_list
+            .stocks
+            .iter()
+            .map(|stock| ListItem::new(stock.symbol.clone()))
+            .collect();
+        let list = List::new(items).block(block).highlight_symbol(">");
+        StatefulWidget::render(list, area, buf, &mut self.search_list.state);
     }
 }
 
 impl App {
+    // Taken from https://ratatui.rs/examples/apps/user_input/
     fn move_cursor_left(&mut self) {
         let cursor_moved_left = self.character_index.saturating_sub(1);
         self.character_index = self.clamp_cursor(cursor_moved_left);
@@ -442,8 +418,37 @@ impl App {
     fn reset_cursor(&mut self) {
         self.character_index = 0;
     }
-    fn submit_message(&mut self) {
+    fn submit_message(&mut self, _message: String) {
+        // If fetch successful, update the search list
+        // If fetch failed, set the search list to empty
+        match self.fetch_search_result(&_message) {
+            Ok(result) => {
+                self.search_list.stocks = result;
+            }
+            Err(_) => {
+                self.search_list.stocks = vec![];
+            }
+        }
+        // self.fetch_search_result();
         self.input.clear();
         self.reset_cursor();
+        self.input_mode = InputMode::Normal;
+    }
+}
+
+// Implementation of Fetching
+// Need to use blocking, ratatui is not async
+impl App {
+    fn fetch_search_result(&mut self, stock: &str) -> Result<Vec<SearchQuote>> {
+        let body = reqwest::blocking::Client::new()
+            .get("https://financialmodelingprep.com/api/v3/search")
+            .query(&[
+                ("query", stock),
+                ("limit", "10"),
+                ("apikey", "uilFVDFWvPNNFgPHkN47tl1vGeusng0H"),
+            ])
+            .send()?
+            .json::<Vec<SearchQuote>>()?;
+        Ok(body)
     }
 }
