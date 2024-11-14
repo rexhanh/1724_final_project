@@ -7,50 +7,28 @@ use ratatui::{
     symbols,
     text::Line,
     widgets::{
-        Block, Borders, List, ListItem, ListState, Padding, Paragraph, StatefulWidget, Widget, Wrap,
+        Block, Borders, List, ListItem, Padding, Paragraph, StatefulWidget, Widget, Wrap,
     },
     DefaultTerminal,
 };
+
+mod models;
+use models::stock::Stock;
+use models::stock_list::StockList;
+
+mod analytics;
+use analytics::render_analytics_screen;
+
 enum Screen {
     Stock,
     Search,
+    Analytics,
 }
 struct App {
     should_quit: bool,
     stock_list: StockList,
     screen: Screen,
-}
-
-struct Stock {
-    name: String,
-    price: f64,
-}
-
-struct StockList {
-    stocks: Vec<Stock>,
-    state: ListState,
-}
-
-impl Stock {
-    fn new(name: &str, price: f64) -> Self {
-        Self {
-            name: name.to_string(),
-            price,
-        }
-    }
-}
-
-impl StockList {
-    fn new() -> Self {
-        Self {
-            stocks: Vec::new(),
-            state: ListState::default(),
-        }
-    }
-
-    fn add_stock(&mut self, stock: Stock) {
-        self.stocks.push(stock);
-    }
+    status_message: String,
 }
 
 impl Default for App {
@@ -73,6 +51,7 @@ impl App {
             should_quit: false,
             stock_list,
             screen: Screen::Stock,
+            status_message: String::new(), 
         }
     }
 
@@ -83,6 +62,7 @@ impl App {
                 match self.screen {
                     Screen::Stock => self.handle_stock_screen_key(key),
                     Screen::Search => self.handle_search_screen_key(key),
+                    Screen::Analytics => self.handle_analytics_screen_key(key),
                 }
                 // self.handle_key(key);
             };
@@ -102,6 +82,28 @@ impl App {
             KeyCode::Char('s') => {
                 self.screen = Screen::Search;
             }
+            KeyCode::Char('a') => {
+                if self.stock_list.state.selected().is_some() {
+                    // If a stock is selected, go to the analytics screen
+                    self.screen = Screen::Analytics;
+                } else {
+                    // If no stock is selected, set a warning message
+                    self.status_message = String::from("Please select a stock before entering analytics.");
+                }
+            }
+            _ => {}
+        }
+    }
+    // Handle keys for Analytics screen
+    fn handle_analytics_screen_key(&mut self, key: KeyEvent) {
+        if key.kind != KeyEventKind::Press {
+            return;
+        }
+        match key.code {
+            KeyCode::Char('q') | KeyCode::Esc => self.should_quit = true,
+            KeyCode::Backspace | KeyCode::Char('h') => {
+                self.screen = Screen::Stock;
+            }
             _ => {}
         }
     }
@@ -114,6 +116,10 @@ impl App {
             KeyCode::Char('q') | KeyCode::Esc => self.should_quit = true,
             KeyCode::Backspace | KeyCode::Char('h') => {
                 self.screen = Screen::Stock;
+            }
+            KeyCode::Char('a') => {
+                // Display a warning message instead of switching to the analytics screen
+                self.status_message = String::from("Cannot enter analytics; you must first select a stock on the stock screen.");
             }
             _ => {}
         }
@@ -138,14 +144,21 @@ impl Widget for &mut App {
             // TODO Add Screens HERE
             Screen::Stock => self.render_stock_screen(area, buf),
             Screen::Search => self.render_search_screen(area, buf),
+            Screen::Analytics => {
+                if let Some(i) = self.stock_list.state.selected() {
+                    let selected_stock = &self.stock_list.stocks[i];
+                    render_analytics_screen(self, selected_stock, area, buf);
+                }
+            },
         }
     }
 }
 
 // Implement for the rendering
 impl App {
+    /* components */
     fn render_header(area: Rect, buf: &mut Buffer) {
-        Paragraph::new("Finance").centered().render(area, buf);
+        Paragraph::new("Finance APP").centered().render(area, buf);
     }
 
     fn render_list(&mut self, area: Rect, buf: &mut Buffer) {
@@ -199,11 +212,12 @@ impl App {
     }
 
     fn render_footer(&self, area: Rect, buf: &mut Buffer) {
-        Paragraph::new("Use ↓↑ to move, ← to unselect, s to search, q to quit")
+        Paragraph::new("Use ↓↑ to move, ← to unselect, s to search, q to quit, h to home, a to analytics")
             .centered()
             .render(area, buf);
     }
 
+    /* screens */
     fn render_stock_screen(&mut self, area: Rect, buf: &mut Buffer) {
         let [header_area, main_area, _footer_area] = Layout::vertical([
             Constraint::Length(2),
