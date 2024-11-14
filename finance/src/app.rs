@@ -35,6 +35,11 @@ impl SearchList {
             state: ListState::default(),
         }
     }
+
+    fn clear(&mut self) {
+        self.stocks = vec![];
+        self.state = ListState::default();
+    }
 }
 
 impl Default for App {
@@ -76,11 +81,12 @@ impl App {
             return;
         }
         match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => self.should_quit = true,
+            KeyCode::Esc => self.should_quit = true,
             KeyCode::Down => self.select_next(),
             KeyCode::Up => self.select_previous(),
             KeyCode::Left => self.select_none(),
             KeyCode::Char('s') => {
+                self.search_list.clear();
                 self.screen = Screen::Search;
             }
             _ => {}
@@ -93,12 +99,15 @@ impl App {
         }
         match self.input_mode {
             InputMode::Normal => match key.code {
-                KeyCode::Char('q') | KeyCode::Esc => self.should_quit = true,
+                KeyCode::Esc => self.should_quit = true,
                 KeyCode::Char('s') => {
                     self.screen = Screen::Stock;
                 }
                 KeyCode::Char('i') => {
                     self.input_mode = InputMode::Editing;
+                }
+                KeyCode::Char('q') => {
+                    self.input_mode = InputMode::Normal;
                 }
                 KeyCode::Down => self.select_next_search(),
                 KeyCode::Up => self.select_previous_search(),
@@ -250,8 +259,8 @@ impl App {
         let info = if let Some(i) = self.stock_list.state.selected() {
             let stock = &self.stock_list.stocks[i];
             format!(
-                "Name: {}\nPrice: ${}\nOpen: ${}\n",
-                stock.symbol, stock.price, stock.open
+                "Name: {}\nPrice: ${}\nOpen: ${}\nChange Percentage: ${}%",
+                stock.symbol, stock.price, stock.open, stock.changepct
             )
         } else {
             "Nothing selected...".to_string()
@@ -283,7 +292,7 @@ impl App {
     }
 
     fn render_footer(&self, area: Rect, buf: &mut Buffer) {
-        Paragraph::new("Use ↓↑ to move, ← to unselect, s to search, q to quit")
+        Paragraph::new("Use ↓↑ to move, ← to unselect, s to search, Esc to quit")
             .centered()
             .render(area, buf);
     }
