@@ -14,7 +14,7 @@ use ratatui::{
 mod model;
 pub use model::{App, InputMode, Quote, Screen, SearchList, StockList};
 mod utils;
-pub use utils::{fetch_search_result, fetch_stock};
+pub use utils::{fetch_search_result, fetch_stock, read_saved_quotes_name, save_quotes_name};
 
 impl StockList {
     fn new() -> Self {
@@ -50,7 +50,23 @@ impl Default for App {
 
 impl App {
     fn new() -> Self {
-        let stock_list = StockList::new();
+        let mut stock_list = StockList::new();
+        // Read saved quotes from file and add them to the stock list
+        match read_saved_quotes_name() {
+            Ok(names) => {
+                for name in names {
+                    let stock = fetch_stock(&name);
+                    match stock {
+                        Ok(stock) => {
+                            stock_list.add_stock(stock);
+                        }
+                        Err(_) => {}
+                    }
+                }
+            }
+            Err(_) => {}
+        }
+
         let search_list = SearchList::new();
         Self {
             should_quit: false,
@@ -83,7 +99,7 @@ impl App {
             return;
         }
         match key.code {
-            KeyCode::Esc => self.should_quit = true,
+            KeyCode::Esc => self.exit(),
             KeyCode::Down => self.select_next(),
             KeyCode::Up => self.select_previous(),
             KeyCode::Left => self.select_none(),
@@ -111,7 +127,7 @@ impl App {
         }
         match self.input_mode {
             InputMode::Normal => match key.code {
-                KeyCode::Esc => self.should_quit = true,
+                KeyCode::Esc => self.exit(),
                 KeyCode::Char('s') => {
                     self.screen = Screen::Stock;
                 }
@@ -149,7 +165,7 @@ impl App {
             return;
         }
         match key.code {
-            KeyCode::Char('q') | KeyCode::Esc => self.should_quit = true,
+            KeyCode::Char('q') | KeyCode::Esc => self.exit(),
             KeyCode::Backspace | KeyCode::Char('h') => {
                 self.screen = Screen::Stock;
             }
@@ -178,6 +194,11 @@ impl App {
     }
     fn select_none_search(&mut self) {
         self.search_list.state.select(None);
+    }
+
+    fn exit(&mut self) {
+        self.should_quit = true;
+        save_quotes_name(self.stock_list.clone());
     }
     fn add_stock(&mut self) {
         if let Some(i) = self.search_list.state.selected() {

@@ -1,4 +1,4 @@
-use super::model::{Quote, SearchQuote};
+use super::model::{Quote, SearchQuote, StockList};
 use std::env;
 
 pub fn fetch_search_result(stock: &str) -> Result<Vec<SearchQuote>, reqwest::Error> {
@@ -20,4 +20,21 @@ pub fn fetch_stock(stock: &str) -> Result<Quote, reqwest::Error> {
         .send()?
         .json::<Vec<Quote>>()?;
     Ok(body[0].clone())
+}
+
+pub fn read_saved_quotes_name() -> Result<Vec<String>, std::io::Error> {
+    let file = std::fs::File::open("saved.json")?;
+    let reader = std::io::BufReader::new(file);
+    let names: Vec<String> = serde_json::from_reader(reader)?;
+    Ok(names)
+}
+
+pub fn save_quotes_name(stocklist: StockList) {
+    let names: Vec<String> = stocklist
+        .stocks
+        .iter()
+        .map(|quote| quote.symbol.clone())
+        .collect();
+    let file = std::fs::File::create("saved.json").unwrap();
+    serde_json::to_writer(file, &names).unwrap();
 }

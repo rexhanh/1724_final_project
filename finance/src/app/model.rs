@@ -39,7 +39,7 @@ pub struct SearchQuote {
     pub name: String,
     pub currency: String,
 }
-
+#[derive(Clone)]
 pub struct StockList {
     pub stocks: Vec<Quote>,
     pub state: ListState,
