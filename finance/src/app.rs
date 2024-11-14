@@ -295,7 +295,7 @@ impl App {
     }
 }
 
-// Implementaation for each of the rendering
+// Implementation of each views' rendering
 impl App {
     fn render_header(area: Rect, buf: &mut Buffer) {
         Paragraph::new("Finance").centered().render(area, buf);
