@@ -49,3 +49,10 @@ pub struct SearchList {
     pub stocks: Vec<SearchQuote>,
     pub state: ListState,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ChartDP {
+    pub date: String,
+    #[serde(rename = "sma")]
+    pub value: f64,
+}

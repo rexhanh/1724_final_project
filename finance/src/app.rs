@@ -3,18 +3,21 @@ use ratatui::{
     buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     layout::{Constraint, Layout, Position, Rect},
-    style::{Color, Stylize},
-    symbols,
+    style::{Color, Stylize, Style},
+    symbols::{self},
     text::Line,
     widgets::{
-        Block, Borders, List, ListItem, ListState, Padding, Paragraph, StatefulWidget, Widget, Wrap,
+        Block, block::Title, Borders, List, ListItem, ListState, Padding, 
+        Paragraph, StatefulWidget, Widget, Wrap,Dataset,
+        Chart, Axis, GraphType,
     },
     DefaultTerminal, Frame,
 };
 mod model;
 pub use model::{App, InputMode, Quote, Screen, SearchList, StockList};
 mod utils;
-pub use utils::{fetch_search_result, fetch_stock};
+pub use utils::{fetch_search_result, fetch_stock, 
+    fetch_sma, parse_chart_point,get_bounds};
 
 impl StockList {
     fn new() -> Self {
@@ -100,6 +103,7 @@ impl App {
                     self.status_message =
                         String::from("Please select a stock before entering analytics.");
                 }
+                // self.screen = Screen::Analytics;
             }
             _ => {}
         }
@@ -203,6 +207,7 @@ impl App {
             Screen::Stock => self.draw_stock_screen(frame),
             Screen::Search => self.draw_search_screen(frame),
             Screen::Analytics => {
+                //self.draw_analytics_screen(frame);
                 if self.stock_list.state.selected().is_some() {
                     self.draw_analytics_screen(frame);
                 }
@@ -262,7 +267,18 @@ impl App {
     }
 
     fn draw_analytics_screen(&self, frame: &mut Frame) {
+        // if let Some(i) = self.stock_list.state.selected() 
+        // let selected_stock = &self.stock_list.stocks[i];
         if let Some(i) = self.stock_list.state.selected() {
+            // let selected_stock = &Quote {
+            //     symbol: "AAPL".to_string(),
+            //     name: "Apple Inc".to_string(),
+            //     price: 130.0,
+            //     changepct: 0.5,
+            //     open: 120.0,
+            //     low: 110.0,
+            //     high: 140.0,
+            // };
             let selected_stock = &self.stock_list.stocks[i];
             // Define main layout areas for header, main content, and footer
             let [header_area, subheader_area, main_area, footer_area] = Layout::vertical([
@@ -272,7 +288,7 @@ impl App {
                 Constraint::Length(1), // Footer height
             ])
             .areas(frame.area());
-
+    
             // Inside the main content area, divide horizontally into Info, Chart, and Gainers
             let [info_area, chart_area, gainers_area] = Layout::horizontal([
                 Constraint::Percentage(30), // Info area takes 30% of the width
@@ -286,9 +302,9 @@ impl App {
                 .alignment(ratatui::layout::Alignment::Center)
                 .render(subheader_area, frame.buffer_mut());
             self.render_stock_info(selected_stock, info_area, frame.buffer_mut());
-            self.render_sma_chart(chart_area, frame.buffer_mut()); // Includes crossover analysis
+            self.render_sma_chart(selected_stock, chart_area, frame); // Includes crossover analysis
             self.render_top_gainers(gainers_area, frame.buffer_mut());
-
+    
             // TODO Might need a new render for this screen
             self.render_footer(footer_area, frame.buffer_mut());
         }
@@ -406,15 +422,147 @@ impl App {
 
         Paragraph::new(info).block(block).render(area, buf);
     }
-    fn render_sma_chart(&self, area: Rect, buf: &mut Buffer) {
-        let block = Block::new()
-            .title(Line::raw("SMA Chart").centered())
-            .borders(Borders::ALL)
-            .border_set(symbols::border::THICK);
+    // fn render_sma_chart(&self, selected_quote: &Quote, area: Rect, frame: &mut Frame) {
+    //     let block = Block::new()
+    //         .title(Line::raw("SMA Chart").centered())
+    //         .borders(Borders::ALL)
+    //         .border_set(symbols::border::THICK);
 
-        Paragraph::new("SMA Chart goes here...")
-            .block(block)
-            .render(area, buf);
+    //     // Fetch SMA data for different periods
+    //     let sma_5days = fetch_sma(&selected_quote.symbol, "5").unwrap();
+    //     let sma_20days = fetch_sma(&selected_quote.symbol, "20").unwrap();
+
+    //     // Filter data to only include this year's entries
+    //     let current_year = 2024;
+    //     let filtered_sma_5days: Vec<(f64, f64)> = sma_5days
+    //         .iter()
+    //         .filter_map(|data| parse_chart_point(&data, current_year))
+    //         .collect();
+    //     let filtered_sma_20days: Vec<(f64, f64)> = sma_20days
+    //         .iter()
+    //         .filter_map(|data| parse_chart_point(&data, current_year))
+    //         .collect();
+
+    //     // Calculate x and y bounds based on filtered data
+    //     let x_bounds = [
+    //         filtered_sma_5days.first().map(|(x, _)| *x).unwrap_or(0.0),
+    //         filtered_sma_5days.last().map(|(x, _)| *x).unwrap_or(1.0),
+    //     ];
+    //     let y_min = filtered_sma_5days
+    //         .iter()
+    //         .chain(filtered_sma_20days.iter())
+    //         .map(|(_, y)| *y)
+    //         .fold(f64::INFINITY, f64::min);
+    //     let y_max = filtered_sma_5days
+    //         .iter()
+    //         .chain(filtered_sma_20days.iter())
+    //         .map(|(_, y)| *y)
+    //         .fold(f64::NEG_INFINITY, f64::max);
+
+    //     // Define datasets for each SMA line
+    //     let sma_5days_dataset = Dataset::default()
+    //         .name("SMA 5 days")
+    //         .marker(Marker::Braille)
+    //         .style(Style::default().fg(Color::Yellow))
+    //         .data(&filtered_sma_5days);
+
+    //     let sma_20days_dataset = Dataset::default()
+    //         .name("SMA 20 days")
+    //         .marker(Marker::Dot)
+    //         .style(Style::default().fg(Color::Cyan))
+    //         .data(&filtered_sma_20days);
+
+    //     // Create the chart with the two datasets
+    //     let chart = Chart::new(vec![sma_5days_dataset, sma_20days_dataset])
+    //         .block(block)
+    //         .x_axis(
+    //             Axis::default()
+    //                 .title("Date")
+    //                 .style(Style::default().fg(Color::Gray))
+    //                 .bounds(x_bounds),
+    //         )
+    //         .y_axis(
+    //             Axis::default()
+    //                 .title("SMA Value")
+    //                 .style(Style::default().fg(Color::Gray))
+    //                 .bounds([y_min, y_max]),
+    //         );
+
+    //     frame.render_widget(chart, area);
+    // }
+
+    fn render_sma_chart(&self, selected_quote: &Quote, area: Rect, frame: &mut Frame) {
+        // let block = Block::new()
+        //     .title(Line::raw("SMA Chart").centered())
+        //     .borders(Borders::ALL)
+        //     .border_set(symbols::border::THICK);
+
+        // Fetch SMA data for different periods and filter by year
+        let sma_5days = fetch_sma(&selected_quote.symbol, "5").unwrap();
+        let sma_20days = fetch_sma(&selected_quote.symbol, "20").unwrap();
+
+        // Filter data to only include this year's entries
+        let current_year = 2024;
+        let dps: Vec<(f64, f64)> = sma_5days
+            .iter()
+            .filter_map(|data| parse_chart_point(&data, current_year))
+            .collect();
+        
+        let dps2: Vec<(f64, f64)> = sma_20days
+            .iter()
+            .filter_map(|data| parse_chart_point(&data, current_year))
+            .collect();
+        // reverse ?
+
+        // get_bounds()
+        let ((x_min, x_max), (y_min, y_max)) = get_bounds(&dps, &dps2);
+
+        let chart = Chart::new(vec![
+            Dataset::default()
+                .name("10-day sma")
+                .marker(symbols::Marker::Braille)
+                .style(Style::default().fg(Color::Cyan))
+                .graph_type(GraphType::Line)
+                .data(&dps),
+            Dataset::default()
+                .name("20-day sma")
+                .marker(symbols::Marker::Braille)
+                .style(Style::default().fg(Color::Yellow))
+                .graph_type(GraphType::Line)
+                .data(&dps2),
+        ])
+        .block(
+            Block::bordered().title(
+                Title::default()
+            ),
+        )
+        .x_axis(
+            Axis::default()
+                .title("X Axis")
+                .style(Style::default().gray())
+                .bounds([x_min, x_max])
+                .labels([ // format no decimal
+                    Line::from(format!("{:.0}", x_min)),
+                    Line::from(format!("{:.0}", (x_min + x_max) / 2.0)),
+                    Line::from(format!("{:.0}", x_max)),
+                ]),
+        )
+        .y_axis(
+            Axis::default()
+                .title("Y Axis")
+                .style(Style::default().gray())
+                .bounds([y_min, y_max])
+                .labels([
+                    Line::from(format!("{:.2}", y_min)),
+                    Line::from(format!("{:.2}", (y_min + y_max) / 2.0)),
+                    Line::from(format!("{:.2}", y_max)),
+                ]),
+        )
+        .hidden_legend_constraints((Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)));
+
+    
+        frame.render_widget(chart, area);
+
     }
     fn render_top_gainers(&self, area: Rect, buf: &mut Buffer) {
         let gainers = "AAPL - $130\nMSFT - $250\nGOOGL - $1900"; // Placeholder data
