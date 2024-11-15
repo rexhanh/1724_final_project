@@ -18,6 +18,7 @@ pub struct App {
     pub input: String,
     pub character_index: usize,
     pub status_message: String,
+    pub top_list: Vec<Top>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -73,4 +74,12 @@ pub struct Company {
     #[serde(rename = "companyName")]
     pub company_name: String,
     pub currency: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Top {
+    pub symbol: String,
+    pub price: f64,
+    #[serde(rename = "changesPercentage")]
+    pub changespct: f64,
 }

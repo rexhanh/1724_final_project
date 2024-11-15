@@ -1,4 +1,4 @@
-use super::model::{Quote, SearchQuote, ChartDP, Company};
+use super::model::{Quote, SearchQuote, ChartDP, Company, Top};
 use chrono::{Datelike, NaiveDateTime};
 //const API_KEY: &str = "uilFVDFWvPNNFgPHkN47tl1vGeusng0H";
 // Bt08M78UNw8jLzvmLk1Bl6s07Gc2rSt6 
@@ -88,4 +88,14 @@ pub fn get_company(stock: &str) -> Result<Company, reqwest::Error> {
         .send()?
         .json::<Vec<Company>>()?;
     Ok(body[0].clone())
+}
+// https://financialmodelingprep.com/api/v3/stock_market/gainers
+pub fn get_top_gainers() -> Result<Vec<Top>, reqwest::Error> {
+    let url = "https://financialmodelingprep.com/api/v3/stock_market/gainers";
+    let body = reqwest::blocking::Client::new()
+        .get(url)
+        .query(&[("apikey", API_KEY)])
+        .send()?
+        .json::<Vec<Top>>()?;
+    Ok(body)
 }

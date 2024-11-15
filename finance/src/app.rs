@@ -18,7 +18,7 @@ pub use model::{App, InputMode, Quote, Screen, SearchList, StockList};
 mod utils;
 pub use utils::{fetch_search_result, fetch_stock, 
     fetch_sma, parse_chart_point,get_bounds,
-    get_company,
+    get_company, get_top_gainers
 };
 
 impl StockList {
@@ -57,6 +57,12 @@ impl App {
     fn new() -> Self {
         let stock_list = StockList::new();
         let search_list = SearchList::new();
+        // Fetch the top gainers when initializing the app
+        let top_lst = match get_top_gainers() {
+            Ok(gainers) => gainers,
+            Err(_) => vec![], // Handle any errors by setting an empty list
+        };
+
         Self {
             should_quit: false,
             stock_list,
@@ -66,6 +72,7 @@ impl App {
             input: String::new(),
             character_index: 0,
             status_message: String::new(),
+            top_list: top_lst,
         }
     }
 
@@ -511,14 +518,38 @@ impl App {
         frame.render_widget(chart, area);
 
     }
-    fn render_top_gainers(&self, area: Rect, buf: &mut Buffer) {
-        let gainers = "AAPL - $130\nMSFT - $250\nGOOGL - $1900"; // Placeholder data
+    // fn render_top_gainers(&self, area: Rect, buf: &mut Buffer) {
+    //     let gainers = "AAPL - $130\nMSFT - $250\nGOOGL - $1900"; // Placeholder data
 
+    //     let block = Block::new()
+    //         .title(Line::raw("Top Gainers").centered())
+    //         .borders(Borders::ALL);
+
+    //     Paragraph::new(gainers).block(block).render(area, buf);
+    // }
+    fn render_top_gainers(&self, area: Rect, buf: &mut Buffer) {
+        // Format each top gainer with all fields in the struct
+        let gainers_info = if self.top_list.is_empty() {
+            "No gainers available.".to_string()
+        } else {
+            self.top_list
+                .iter()
+                .map(|gainer| format!(
+                    "{} - Price: ${:.2}, Change: {:.2}%",
+                    gainer.symbol,
+                    gainer.price,
+                    gainer.changespct
+                ))
+                .collect::<Vec<String>>()
+                .join("\n")
+        };
+    
+        // Render the gainers info within the given area
         let block = Block::new()
             .title(Line::raw("Top Gainers").centered())
             .borders(Borders::ALL);
-
-        Paragraph::new(gainers).block(block).render(area, buf);
+    
+        Paragraph::new(gainers_info).block(block).render(area, buf);
     }
 }
 
