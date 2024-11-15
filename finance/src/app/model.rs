@@ -56,3 +56,21 @@ pub struct ChartDP {
     #[serde(rename = "sma")]
     pub value: f64,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Company {
+    pub symbol: String,
+    pub price: f64,
+    pub beta: f64,
+    #[serde(rename = "volAvg")]
+    pub vol_avg: u64,
+    #[serde(rename = "mktCap")]
+    pub market_cap: u64,
+    #[serde(rename = "lastDiv")]
+    pub last_dividend: f64,
+    pub range: String,
+    pub changes: f64,
+    #[serde(rename = "companyName")]
+    pub company_name: String,
+    pub currency: String,
+}

@@ -1,4 +1,4 @@
-use super::model::{Quote, SearchQuote, ChartDP};
+use super::model::{Quote, SearchQuote, ChartDP, Company};
 use chrono::{Datelike, NaiveDateTime};
 //const API_KEY: &str = "uilFVDFWvPNNFgPHkN47tl1vGeusng0H";
 // Bt08M78UNw8jLzvmLk1Bl6s07Gc2rSt6 
@@ -38,21 +38,6 @@ pub fn fetch_sma(stock: &str, period:&str) -> Result<Vec<ChartDP>, reqwest::Erro
     Ok(body)
 }
 
-// dp wise filter only this year's data and convert type to plotly format
-// e.g. (""2021-01-01", 100.21) -> (101.0, 100.21)
-// pub fn parse_chart_point(data: &ChartDP, year: i32) -> Option<(f64, f64)> {
-//     // Attempt to parse the date in the format "YYYY-MM-DD"
-//     if let Ok(parsed_date) = NaiveDate::parse_from_str(&data.date, "%Y-%m-%d") {
-//         // Check if the year matches
-//         if parsed_date.year() == year {
-//             // Convert the date to "MMDD" format as a floating-point number
-//             let month_day = (parsed_date.month() * 100 + parsed_date.day()) as f64;
-//             return Some((month_day, data.value));
-//         }
-//     }
-//     // Return None if the year does not match or if parsing fails
-//     None
-// }
 pub fn parse_chart_point(point: &ChartDP, year: i32) -> Option<(f64, f64)> {
     // Parse the date string to NaiveDateTime
     let datetime = NaiveDateTime::parse_from_str(&point.date, "%Y-%m-%d %H:%M:%S").ok()?;
@@ -95,4 +80,12 @@ pub fn get_bounds(data1: &[(f64, f64)], data2: &[(f64, f64)]) -> ((f64, f64), (f
     ((x_min, x_max), (y_min, y_max))
 }
 
-
+pub fn get_company(stock: &str) -> Result<Company, reqwest::Error> {
+    let url = String::from("https://financialmodelingprep.com/api/v3/profile/") + stock;
+    let body = reqwest::blocking::Client::new()
+        .get(url)
+        .query(&[("apikey", API_KEY)])
+        .send()?
+        .json::<Vec<Company>>()?;
+    Ok(body[0].clone())
+}
