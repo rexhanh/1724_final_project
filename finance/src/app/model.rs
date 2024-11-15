@@ -19,6 +19,7 @@ pub struct App {
     pub character_index: usize,
     pub status_message: String,
     pub top_list: Vec<Top>,
+    pub scroll_offset: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

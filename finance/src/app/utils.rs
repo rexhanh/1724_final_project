@@ -4,7 +4,8 @@ use chrono::{Datelike, NaiveDateTime};
 // Bt08M78UNw8jLzvmLk1Bl6s07Gc2rSt6 
 // 77iRkUzOmkrSxwfuO3Mb8t7gLd6dP9yg
 // H7iSor1eE79j32YkLqY0czsSfJXhUcDr
-const API_KEY: &str = "H7iSor1eE79j32YkLqY0czsSfJXhUcDr";
+// Qxk93ZPLycDgwKFc0NILS8yzwTsi8a0y
+const API_KEY: &str = "Qxk93ZPLycDgwKFc0NILS8yzwTsi8a0y";
 pub fn fetch_search_result(stock: &str) -> Result<Vec<SearchQuote>, reqwest::Error> {
     let body = reqwest::blocking::Client::new()
         .get("https://financialmodelingprep.com/api/v3/search")

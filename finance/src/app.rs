@@ -73,7 +73,16 @@ impl App {
             character_index: 0,
             status_message: String::new(),
             top_list: top_lst,
+            scroll_offset: 0,
         }
+    }
+
+    fn scroll_down(&mut self) {
+        self.scroll_offset = (self.scroll_offset + 1).min(self.top_list.len());
+    }
+
+    fn scroll_up(&mut self) {
+        self.scroll_offset = self.scroll_offset.saturating_sub(1);
     }
 
     pub fn run(mut self, mut terminal: DefaultTerminal) -> Result<()> {
@@ -166,6 +175,8 @@ impl App {
             KeyCode::Backspace | KeyCode::Char('h') => {
                 self.screen = Screen::Stock;
             }
+            KeyCode::Down => self.scroll_down(), // Scroll down on Down arrow key
+            KeyCode::Up => self.scroll_up(),     // Scroll up on Up arrow key
             _ => {}
         }
     }
@@ -310,7 +321,7 @@ impl App {
             .render(subheader_area, frame.buffer_mut());
         self.render_company_info(selected_stock, info_area, frame);
         self.render_sma_chart(selected_stock, chart_area, frame); // Includes crossover analysis
-        self.render_top_gainers(gainers_area, frame.buffer_mut());
+        self.render_top_gainers(gainers_area, frame);
 
         // TODO Might need a new render for this screen
         self.render_footer(footer_area, frame.buffer_mut());
@@ -527,13 +538,44 @@ impl App {
 
     //     Paragraph::new(gainers).block(block).render(area, buf);
     // }
-    fn render_top_gainers(&self, area: Rect, buf: &mut Buffer) {
-        // Format each top gainer with all fields in the struct
-        let gainers_info = if self.top_list.is_empty() {
-            "No gainers available.".to_string()
+
+    // fn render_top_gainers(&self, area: Rect, frame: &mut Frame) {
+    //     // Format each top gainer with all fields in the struct
+    //     let gainers_info = if self.top_list.is_empty() {
+    //         "No gainers available.".to_string()
+    //     } else {
+    //         self.top_list
+    //             .iter()
+    //             .map(|gainer| format!(
+    //                 "{} - Price: ${:.2}, Change: {:.2}%",
+    //                 gainer.symbol,
+    //                 gainer.price,
+    //                 gainer.changespct
+    //             ))
+    //             .collect::<Vec<String>>()
+    //             .join("\n")
+    //     };
+    
+    //     // Render the gainers info within the given area
+    //     let block = Block::new()
+    //         .title(Line::raw("Top Gainers").centered())
+    //         .borders(Borders::ALL);
+    
+    //     Paragraph::new(gainers_info).block(block).render(area, buf);
+    // }
+
+    fn render_top_gainers(&self, area: Rect, frame: &mut Frame) {
+        // Define how many items to display based on the area height
+        let max_visible_items = area.height as usize - 2; // Adjust for block padding if necessary
+
+        // Slice the top gainers list based on the scroll offset
+        let visible_gainers = if self.top_list.is_empty() {
+            vec!["No gainers available.".to_string()]
         } else {
             self.top_list
                 .iter()
+                .skip(self.scroll_offset) // Start from the scroll offset
+                .take(max_visible_items) // Only take the items that fit in the visible area
                 .map(|gainer| format!(
                     "{} - Price: ${:.2}, Change: {:.2}%",
                     gainer.symbol,
@@ -541,16 +583,22 @@ impl App {
                     gainer.changespct
                 ))
                 .collect::<Vec<String>>()
-                .join("\n")
         };
-    
+
+        // Join the visible items with line breaks
+        let gainers_info = visible_gainers.join("\n");
+
         // Render the gainers info within the given area
         let block = Block::new()
             .title(Line::raw("Top Gainers").centered())
             .borders(Borders::ALL);
-    
-        Paragraph::new(gainers_info).block(block).render(area, buf);
+
+        Paragraph::new(gainers_info)
+            .block(block)
+            .render(area, frame.buffer_mut());
     }
+
+
 }
 
 impl App {
