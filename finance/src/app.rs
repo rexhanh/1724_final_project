@@ -343,7 +343,7 @@ impl App {
         let info = if let Some(i) = self.stock_list.state.selected() {
             let stock = &self.stock_list.stocks[i];
             format!(
-                "Name: {}\nPrice: ${}\nOpen: ${}\nChange Percentage: ${}%",
+                "Name: {}\nPrice: ${}\nOpen: ${}\nChange Percentage: {}%",
                 stock.symbol, stock.price, stock.open, stock.changepct
             )
         } else {

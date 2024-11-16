@@ -16,7 +16,7 @@ pub fn fetch_stock(stock: &str) -> Result<Quote, reqwest::Error> {
     let url = String::from("https://financialmodelingprep.com/api/v3/quote/") + stock;
     let body = reqwest::blocking::Client::new()
         .get(url)
-        .query(&[("apikey", api_key)])
+        .query(&[("apikey", &api_key)])
         .send()?
         .json::<Vec<Quote>>()?;
     Ok(body[0].clone())
