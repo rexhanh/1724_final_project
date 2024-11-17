@@ -20,6 +20,9 @@ pub struct App {
     pub status_message: String,
     pub top_list: Vec<Top>,
     pub scroll_offset: usize,
+    pub company: Option<Company>,
+    pub sma_5days: Vec<ChartDP>,
+    pub sma_30days: Vec<ChartDP>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

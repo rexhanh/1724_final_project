@@ -3,22 +3,21 @@ use ratatui::{
     buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     layout::{Constraint, Layout, Position, Rect},
-    style::{Color, Stylize, Style},
+    style::{Color, Style, Stylize},
     symbols::{self},
     text::Line,
     widgets::{
-        Block, block::Title, Borders, List, ListItem, ListState, Padding, 
-        Paragraph, StatefulWidget, Widget, Wrap,Dataset,
-        Chart, Axis, GraphType,
+        Axis, Block, Borders, Chart, Dataset, GraphType, List, ListItem, ListState,
+        Padding, Paragraph, StatefulWidget, Widget, Wrap,
     },
     DefaultTerminal, Frame,
 };
 mod model;
 pub use model::{App, InputMode, Quote, Screen, SearchList, StockList};
 mod utils;
-pub use utils::{fetch_search_result, fetch_stock, 
-    fetch_sma, parse_chart_point,get_bounds,
-    get_company, get_top_gainers
+pub use utils::{
+    fetch_search_result, fetch_sma, fetch_stock, get_bounds, get_company, get_top_gainers,
+    parse_chart_point,
 };
 
 impl StockList {
@@ -74,6 +73,9 @@ impl App {
             status_message: String::new(),
             top_list: top_lst,
             scroll_offset: 0,
+            company: None,
+            sma_5days: vec![],
+            sma_30days: vec![],
         }
     }
 
@@ -113,15 +115,23 @@ impl App {
                 self.screen = Screen::Search;
             }
             KeyCode::Enter => {
-                // if self.stock_list.state.selected().is_some() {
-                //     // If a stock is selected, go to the analytics screen
-                //     self.screen = Screen::Analytics;
-                // } else {
-                //     // If no stock is selected, set a warning message
-                //     self.status_message =
-                //         String::from("Please select a stock before entering analytics.");
-                // }
-                self.screen = Screen::Analytics;
+                if self.stock_list.state.selected().is_some() {
+                    // If a stock is selected, go to the analytics screen
+                    // get selected stock
+                    let i = self.stock_list.state.selected().unwrap();
+                    let selected_stock = &self.stock_list.stocks[i];
+                    // get data for analytics sreen
+                    self.company = Some(get_company(&selected_stock.symbol).unwrap());
+                    self.sma_5days = fetch_sma(&selected_stock.symbol, "5").unwrap();
+                    self.sma_30days = fetch_sma(&selected_stock.symbol, "30").unwrap();
+
+                    // go to analytics screen
+                    self.screen = Screen::Analytics;
+                } else {
+                    // If no stock is selected, set a warning message
+                    self.status_message =
+                        String::from("Please select a stock before entering analytics.");
+                }
             }
             _ => {}
         }
@@ -227,10 +237,10 @@ impl App {
             Screen::Stock => self.draw_stock_screen(frame),
             Screen::Search => self.draw_search_screen(frame),
             Screen::Analytics => {
-                self.draw_analytics_screen(frame);
-                // if self.stock_list.state.selected().is_some() {
-                //     self.draw_analytics_screen(frame);
-                // }
+                // self.draw_analytics_screen(frame);
+                if self.stock_list.state.selected().is_some() {
+                    self.draw_analytics_screen(frame);
+                }
             }
         }
     }
@@ -287,44 +297,36 @@ impl App {
     }
 
     fn draw_analytics_screen(&self, frame: &mut Frame) {
-        // if let Some(i) = self.stock_list.state.selected() 
-        // let selected_stock = &self.stock_list.stocks[i];
-        let selected_stock = &Quote {
-            symbol: "AAPL".to_string(),
-            name: "Apple Inc".to_string(),
-            price: 130.0,
-            changepct: 0.5,
-            open: 120.0,
-            low: 110.0,
-            high: 140.0,
-        };
-        // Define main layout areas for header, main content, and footer
-        let [header_area, subheader_area, main_area, footer_area] = Layout::vertical([
-            Constraint::Length(2), // Header height
-            Constraint::Length(1), // Subheader height
-            Constraint::Fill(1),   // Main content area takes up remaining space
-            Constraint::Length(1), // Footer height
-        ])
-        .areas(frame.area());
+        if let Some(i) = self.stock_list.state.selected() {
+            let selected_stock = &self.stock_list.stocks[i];
+            // Define main layout areas for header, main content, and footer
+            let [header_area, subheader_area, main_area, footer_area] = Layout::vertical([
+                Constraint::Length(2), // Header height
+                Constraint::Length(1), // Subheader height
+                Constraint::Fill(1),   // Main content area takes up remaining space
+                Constraint::Length(1), // Footer height
+            ])
+            .areas(frame.area());
 
-        // Inside the main content area, divide horizontally into Info, Chart, and Gainers
-        let [info_area, chart_area, gainers_area] = Layout::horizontal([
-            Constraint::Percentage(30), // Info area takes 30% of the width
-            Constraint::Percentage(40), // Chart area takes 40% of the width
-            Constraint::Percentage(30), // Gainers area takes 30% of the width
-        ])
-        .areas(main_area);
-        App::render_header(header_area, frame.buffer_mut());
-        let subheader_text = format!("Analysis for stock {}", selected_stock.name);
-        Paragraph::new(Line::raw(subheader_text))
-            .alignment(ratatui::layout::Alignment::Center)
-            .render(subheader_area, frame.buffer_mut());
-        self.render_company_info(selected_stock, info_area, frame);
-        self.render_sma_chart(selected_stock, chart_area, frame); // Includes crossover analysis
-        self.render_top_gainers(gainers_area, frame);
+            // Inside the main content area, divide horizontally into Info, Chart, and Gainers
+            let [info_area, chart_area, gainers_area] = Layout::horizontal([
+                Constraint::Percentage(30), // Info area takes 30% of the width
+                Constraint::Percentage(40), // Chart area takes 40% of the width
+                Constraint::Percentage(30), // Gainers area takes 30% of the width
+            ])
+            .areas(main_area);
+            App::render_header(header_area, frame.buffer_mut());
+            let subheader_text = format!("Analysis for stock {}", selected_stock.name);
+            Paragraph::new(Line::raw(subheader_text))
+                .alignment(ratatui::layout::Alignment::Center)
+                .render(subheader_area, frame.buffer_mut());
+            self.render_company_info(info_area, frame);
+            self.render_sma_chart(chart_area, frame); // Includes crossover analysis
+            self.render_top_gainers(gainers_area, frame);
 
-        // TODO Might need a new render for this screen
-        self.render_footer(footer_area, frame.buffer_mut());
+            // TODO Might need a new render for this screen
+            self.render_footer(footer_area, frame.buffer_mut());
+        }
     }
 }
 
@@ -388,7 +390,7 @@ impl App {
     }
 
     fn render_footer(&self, area: Rect, buf: &mut Buffer) {
-        Paragraph::new("Use ↓↑ to move, ← to unselect, s to search, Esc to quit")
+        Paragraph::new("↓↑ to move, ← to unselect, s to search, Enter key to analytics from home with stock selected, Esc to quit")
             .centered()
             .render(area, buf);
     }
@@ -427,10 +429,12 @@ impl App {
         let list = List::new(items).block(block).highlight_symbol(">");
         StatefulWidget::render(list, area, buf, &mut self.search_list.state);
     }
-    fn render_company_info(&self, selected_quote: &Quote, area: Rect, frame: &mut Frame) {
-        // Assuming `get_company` returns a Result with `Company` instance
-        let company = get_company(&selected_quote.symbol).unwrap();
     
+    fn render_company_info(&self, area: Rect, frame: &mut Frame) {
+        // Assuming `get_company` returns a Result with `Company` instance
+        // let company = get_company(&selected_quote.symbol).unwrap();
+        let company = self.company.as_ref().unwrap(); // TODO get selected stock
+
         // Display company fields, 1 field per line
         let company_info = format!(
             "Symbol: {}\nCompany_name: {}\nPrice: {}\nbeta: {}\n
@@ -447,66 +451,58 @@ impl App {
             company.changes,
             company.currency,
         );
-    
+
         // Render this information within the given area using Ratatui
         let paragraph = Paragraph::new(company_info)
             .block(Block::default().title("Company Info").borders(Borders::ALL))
             .wrap(Wrap { trim: true });
-    
+
         frame.render_widget(paragraph, area);
     }
 
-    fn render_sma_chart(&self, selected_quote: &Quote, area: Rect, frame: &mut Frame) {
-        // let block = Block::new()
-        //     .title(Line::raw("SMA Chart").centered())
-        //     .borders(Borders::ALL)
-        //     .border_set(symbols::border::THICK);
-
-        // Fetch SMA data for different periods and filter by year
-        let sma_5days = fetch_sma(&selected_quote.symbol, "5").unwrap();
-        let sma_20days = fetch_sma(&selected_quote.symbol, "20").unwrap();
-
+    fn render_sma_chart(&self, area: Rect, frame: &mut Frame) {
+        // process the SMA data
+        let sma_5days = &self.sma_5days;
+        let sma_20days = &self.sma_30days;
+    
         // Filter data to only include this year's entries
         let current_year = 2024;
         let dps: Vec<(f64, f64)> = sma_5days
             .iter()
             .filter_map(|data| parse_chart_point(&data, current_year))
             .collect();
-        
+    
         let dps2: Vec<(f64, f64)> = sma_20days
             .iter()
             .filter_map(|data| parse_chart_point(&data, current_year))
             .collect();
-        // reverse ?
-
-        // get_bounds()
+    
+        // Calculate chart bounds
         let ((x_min, x_max), (y_min, y_max)) = get_bounds(&dps, &dps2);
-
+    
+        // Define the chart with datasets
         let chart = Chart::new(vec![
             Dataset::default()
-                .name("10-day sma")
+                .name("10-day SMA")
                 .marker(symbols::Marker::Braille)
                 .style(Style::default().fg(Color::Cyan))
                 .graph_type(GraphType::Line)
                 .data(&dps),
             Dataset::default()
-                .name("20-day sma")
+                .name("20-day SMA")
                 .marker(symbols::Marker::Braille)
                 .style(Style::default().fg(Color::Yellow))
                 .graph_type(GraphType::Line)
                 .data(&dps2),
         ])
-        .block(
-            Block::bordered().title(
-                Title::default()
-            ),
-        )
+        .block(Block::bordered()
+        .title("Simple Moving Average (SMA) Graph 2024: (X-axis: MMDD)"))
         .x_axis(
             Axis::default()
-                .title("X Axis")
+                .title("X Axis: Time")
                 .style(Style::default().gray())
                 .bounds([x_min, x_max])
-                .labels([ // format no decimal
+                .labels([
                     Line::from(format!("{:.0}", x_min)),
                     Line::from(format!("{:.0}", (x_min + x_max) / 2.0)),
                     Line::from(format!("{:.0}", x_max)),
@@ -514,7 +510,7 @@ impl App {
         )
         .y_axis(
             Axis::default()
-                .title("Y Axis")
+                .title("Y Axis: Stock Price")
                 .style(Style::default().gray())
                 .bounds([y_min, y_max])
                 .labels([
@@ -524,49 +520,23 @@ impl App {
                 ]),
         )
         .hidden_legend_constraints((Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)));
-
     
+        // Render the chart in the remaining area
         frame.render_widget(chart, area);
-
     }
-    // fn render_top_gainers(&self, area: Rect, buf: &mut Buffer) {
-    //     let gainers = "AAPL - $130\nMSFT - $250\nGOOGL - $1900"; // Placeholder data
-
-    //     let block = Block::new()
-    //         .title(Line::raw("Top Gainers").centered())
-    //         .borders(Borders::ALL);
-
-    //     Paragraph::new(gainers).block(block).render(area, buf);
-    // }
-
-    // fn render_top_gainers(&self, area: Rect, frame: &mut Frame) {
-    //     // Format each top gainer with all fields in the struct
-    //     let gainers_info = if self.top_list.is_empty() {
-    //         "No gainers available.".to_string()
-    //     } else {
-    //         self.top_list
-    //             .iter()
-    //             .map(|gainer| format!(
-    //                 "{} - Price: ${:.2}, Change: {:.2}%",
-    //                 gainer.symbol,
-    //                 gainer.price,
-    //                 gainer.changespct
-    //             ))
-    //             .collect::<Vec<String>>()
-    //             .join("\n")
-    //     };
-    
-    //     // Render the gainers info within the given area
-    //     let block = Block::new()
-    //         .title(Line::raw("Top Gainers").centered())
-    //         .borders(Borders::ALL);
-    
-    //     Paragraph::new(gainers_info).block(block).render(area, buf);
-    // }
 
     fn render_top_gainers(&self, area: Rect, frame: &mut Frame) {
         // Define how many items to display based on the area height
-        let max_visible_items = area.height as usize - 2; // Adjust for block padding if necessary
+        let max_visible_items = (area.height as usize).saturating_sub(3); // Adjust for block padding and footer
+
+        // Calculate scrollbar height and position
+        let total_items = self.top_list.len();
+        let scrollbar_height = max_visible_items.min(area.height as usize - 3);
+        let scrollbar_position = if total_items > max_visible_items {
+            (self.scroll_offset * (scrollbar_height - 1)) / (total_items - max_visible_items)
+        } else {
+            0
+        };
 
         // Slice the top gainers list based on the scroll offset
         let visible_gainers = if self.top_list.is_empty() {
@@ -576,29 +546,51 @@ impl App {
                 .iter()
                 .skip(self.scroll_offset) // Start from the scroll offset
                 .take(max_visible_items) // Only take the items that fit in the visible area
-                .map(|gainer| format!(
-                    "{} - Price: ${:.2}, Change: {:.2}%",
-                    gainer.symbol,
-                    gainer.price,
-                    gainer.changespct
-                ))
+                .map(|gainer| {
+                    format!(
+                        "{} - Price: ${:.2}, Change: {:.2}%",
+                        gainer.symbol, gainer.price, gainer.changespct
+                    )
+                })
                 .collect::<Vec<String>>()
         };
 
         // Join the visible items with line breaks
         let gainers_info = visible_gainers.join("\n");
 
-        // Render the gainers info within the given area
+        // Render the top gainers block
         let block = Block::new()
-            .title(Line::raw("Top Gainers").centered())
+            .title(Line::raw("Top Gainers (Use ↑↓ to scroll)").centered())
             .borders(Borders::ALL);
 
+        // Render the paragraph with gainers information
         Paragraph::new(gainers_info)
             .block(block)
             .render(area, frame.buffer_mut());
+
+        // Render the scrollbar on the right side of the block
+        let scrollbar_content: String = (0..scrollbar_height)
+            .map(|i| {
+                if i == scrollbar_position {
+                    "█\n" // Scroll handle
+                } else {
+                    "░\n" // Empty scrollbar line
+                }
+            })
+            .collect();
+
+        let scrollbar_paragraph =
+            Paragraph::new(scrollbar_content).alignment(ratatui::layout::Alignment::Left);
+
+        let scrollbar_area = Rect {
+            x: area.x + area.width - 1,
+            y: area.y + 1,
+            width: 1,
+            height: area.height - 2,
+        };
+
+        frame.render_widget(scrollbar_paragraph, scrollbar_area);
     }
-
-
 }
 
 impl App {
