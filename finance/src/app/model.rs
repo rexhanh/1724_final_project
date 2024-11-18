@@ -18,6 +18,11 @@ pub struct App {
     pub input: String,
     pub character_index: usize,
     pub status_message: String,
+    pub top_list: Vec<Top>,
+    pub scroll_offset: usize,
+    pub company: Option<Company>,
+    pub sma_5days: Vec<ChartDP>,
+    pub sma_30days: Vec<ChartDP>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -48,4 +53,37 @@ pub struct StockList {
 pub struct SearchList {
     pub stocks: Vec<SearchQuote>,
     pub state: ListState,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ChartDP {
+    pub date: String,
+    #[serde(rename = "sma")]
+    pub value: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Company {
+    pub symbol: String,
+    pub price: f64,
+    pub beta: f64,
+    #[serde(rename = "volAvg")]
+    pub vol_avg: u64,
+    #[serde(rename = "mktCap")]
+    pub market_cap: u64,
+    #[serde(rename = "lastDiv")]
+    pub last_dividend: f64,
+    pub range: String,
+    pub changes: f64,
+    #[serde(rename = "companyName")]
+    pub company_name: String,
+    pub currency: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Top {
+    pub symbol: String,
+    pub price: f64,
+    #[serde(rename = "changesPercentage")]
+    pub changespct: f64,
 }
