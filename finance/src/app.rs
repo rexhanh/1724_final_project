@@ -1,3 +1,4 @@
+use chrono::{Datelike, NaiveDate};
 use color_eyre::Result;
 use ratatui::{
     buffer::Buffer,
@@ -5,7 +6,7 @@ use ratatui::{
     layout::{Constraint, Layout, Position, Rect},
     style::{Color, Style, Stylize},
     symbols::{self},
-    text::Line,
+    text::{Line, Span},
     widgets::{
         Axis, Block, Borders, Chart, Dataset, GraphType, List, ListItem, ListState, Padding,
         Paragraph, StatefulWidget, Widget, Wrap,
@@ -13,11 +14,12 @@ use ratatui::{
     DefaultTerminal, Frame,
 };
 mod model;
-pub use model::{App, InputMode, Quote, Screen, SearchList, StockList};
+pub use model::{App, InputMode, Quote, Screen, SearchList, StockData, StockList};
 mod utils;
 pub use utils::{
-    fetch_search_result, fetch_sma, fetch_stock, get_bounds, get_company, get_top_gainers,
-    parse_chart_point, read_saved_quotes_name, save_quotes_name,
+    fetch_historical_data, fetch_search_result, fetch_sma, fetch_stock, get_bounds, get_company,
+    get_date_range_30_days, get_top_gainers, parse_chart_point, read_saved_quotes_name,
+    save_quotes_name,
 };
 
 impl StockList {
@@ -284,7 +286,7 @@ impl App {
         App::render_header(header_area, frame.buffer_mut());
         self.render_list(list_area, frame.buffer_mut());
         self.render_selected_item(info_area, frame.buffer_mut());
-        self.render_chart(_chart_area, frame.buffer_mut());
+        self.render_chart(_chart_area, frame);
         self.render_footer(_footer_area, frame.buffer_mut());
     }
 
@@ -398,16 +400,158 @@ impl App {
             .wrap(Wrap { trim: false })
             .render(area, buf);
     }
-    fn render_chart(&self, area: Rect, buf: &mut Buffer) {
-        // TODO Add Chart rendering here
-        let block = Block::new()
-            .title(Line::raw("Chart").centered())
-            .borders(Borders::ALL)
-            .border_set(symbols::border::THICK);
 
-        Paragraph::new("Chart goes here...")
-            .block(block)
-            .render(area, buf);
+    fn render_chart(&self, area: Rect, frame: &mut Frame) {
+        if let Some(i) = self.stock_list.state.selected() {
+            // Get the symbol of the selected stock
+            let symbol = &self.stock_list.stocks[i].symbol;
+
+            // Use `get_date_range_30_days` to define the date range
+            let (from, to) = get_date_range_30_days();
+
+            // Fetch historical data
+            let historical_data =
+                fetch_historical_data(symbol, &from, &to).unwrap_or_else(|_| StockData {
+                    symbol: symbol.to_string(),
+                    historical: vec![],
+                });
+
+            // Prepare data points for the chart in reverse order (newest data on the right)
+            let mut dps: Vec<(f64, f64)> = Vec::new();
+            let mut monday_labels: Vec<Line> = Vec::new();
+
+            for (index, entry) in historical_data.historical.iter().rev().enumerate() {
+                // Parse the date string to NaiveDate
+                if let Ok(date) = NaiveDate::parse_from_str(&entry.date, "%Y-%m-%d") {
+                    // Add the close price to data points in reverse order
+                    dps.push((index as f64, entry.close));
+
+                    // Check if the date is a Monday
+                    if date.weekday() == chrono::Weekday::Mon {
+                        // Format the date as "MMM DD" and add to labels
+                        let label = date.format("%b %d").to_string();
+                        monday_labels.push(Line::from(Span::raw(label)));
+                    }
+                }
+            }
+
+            // Calculate y-axis bounds
+            let y_min = dps.iter().map(|(_, y)| *y).fold(f64::INFINITY, f64::min);
+            let y_max = dps
+                .iter()
+                .map(|(_, y)| *y)
+                .fold(f64::NEG_INFINITY, f64::max);
+            let x_min = 0.0;
+            let x_max = dps.len() as f64 - 1.0;
+
+            // Define the chart with datasets
+            let chart = Chart::new(vec![Dataset::default()
+                .name("Close Price")
+                .marker(symbols::Marker::Braille)
+                .style(Style::default().fg(Color::Yellow))
+                .graph_type(GraphType::Line)
+                .data(&dps)])
+            .block(
+                Block::default()
+                    .title(Line::raw("1-Month Price History").centered())
+                    .borders(Borders::ALL),
+            )
+            .x_axis(
+                Axis::default()
+                    .title("Date")
+                    .style(Style::default().gray())
+                    .bounds([x_min, x_max])
+                    .labels(monday_labels), // Use only Monday labels
+            )
+            .y_axis(
+                Axis::default()
+                    .title("Close Price")
+                    .style(Style::default().gray())
+                    .bounds([y_min, y_max])
+                    .labels(vec![
+                        Line::from(format!("{:.2}", y_min)),
+                        Line::from(format!("{:.2}", (y_min + y_max) / 2.0)),
+                        Line::from(format!("{:.2}", y_max)),
+                    ]),
+            );
+
+            // Render the chart in the specified area
+            frame.render_widget(chart, area);
+        } else {
+            let block = Block::default()
+                .title(Line::raw("Chart").centered())
+                .borders(Borders::ALL)
+                .border_set(symbols::border::THICK);
+
+            let paragraph = Paragraph::new("Nothing selected...").block(block);
+
+            frame.render_widget(paragraph, area); // Use `render_widget` here as well
+        }
+        //     // Process and render the historical data as shown previously
+        //     let dps: Vec<(f64, f64)> = historical_data
+        //         .historical
+        //         .iter()
+        //         .enumerate()
+        //         .map(|(i, data)| (i as f64, data.close))
+        //         .collect();
+
+        //     // Calculate chart bounds as done previously
+        //     let y_min = dps.iter().map(|(_, y)| *y).fold(f64::INFINITY, f64::min);
+        //     let y_max = dps.iter().map(|(_, y)| *y).fold(f64::NEG_INFINITY, f64::max);
+        //     let x_min = 0.0;
+        //     let x_max = dps.len() as f64 - 1.0;
+
+        //     // Render the chart using `dps`
+        //     let chart = Chart::new(vec![
+        //         Dataset::default()
+        //             .name("Close Price")
+        //             .marker(symbols::Marker::Braille)
+        //             .style(Style::default().fg(Color::Yellow))
+        //             .graph_type(GraphType::Line)
+        //             .data(&dps),
+        //     ])
+        //     .block(
+        //         Block::default()
+        //             .title(Line::raw("1-Month Price History").centered())
+        //             .borders(Borders::ALL)
+        //     )
+        //     .x_axis(
+        //         Axis::default()
+        //             .title("Days")
+        //             .style(Style::default().gray())
+        //             .bounds([x_min, x_max])
+        //             .labels(
+        //                 dps.iter()
+        //                     .step_by(5)
+        //                     .map(|(x, _)| Line::from(format!("{:.0}", x)))
+        //                     .collect::<Vec<Line>>(),
+        //             ),
+        //     )
+        //     .y_axis(
+        //         Axis::default()
+        //             .title("Close Price")
+        //             .style(Style::default().gray())
+        //             .bounds([y_min, y_max])
+        //             .labels(vec![
+        //                 Line::from(format!("{:.2}", y_min)),
+        //                 Line::from(format!("{:.2}", (y_min + y_max) / 2.0)),
+        //                 Line::from(format!("{:.2}", y_max)),
+        //             ]),
+        //     );
+
+        //     frame.render_widget(chart, area);
+
+        // } else {
+        //     let block = Block::default()
+        //     .title(Line::raw("Chart").centered())
+        //     .borders(Borders::ALL)
+        //     .border_set(symbols::border::THICK);
+
+        //     let paragraph = Paragraph::new("Nothing selected...")
+        //         .block(block);
+
+        //     frame.render_widget(paragraph, area); // Use `render_widget` here as well
+        // }
     }
 
     fn render_footer(&self, area: Rect, buf: &mut Buffer) {
@@ -540,7 +684,6 @@ impl App {
                 ]),
         )
         .hidden_legend_constraints((Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)));
-
         // Render the chart in the remaining area
         frame.render_widget(chart, area);
     }

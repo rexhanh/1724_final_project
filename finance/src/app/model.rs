@@ -87,3 +87,21 @@ pub struct Top {
     #[serde(rename = "changesPercentage")]
     pub changespct: f64,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct HistoricalPrice {
+    pub date: String,
+    pub open: f64,
+    pub high: f64,
+    pub low: f64,
+    pub close: f64,
+    #[serde(rename = "adjClose")]
+    pub adj_close: f64,
+    pub volume: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct StockData {
+    pub symbol: String,
+    pub historical: Vec<HistoricalPrice>,
+}

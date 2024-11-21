@@ -1,24 +1,24 @@
 use super::model::StockList;
-use super::model::{ChartDP, Company, Quote, SearchQuote, Top};
-use chrono::{Datelike, NaiveDateTime};
-use std::env;
+use super::model::{ChartDP, Company, Quote, SearchQuote, StockData, Top};
 
+use chrono::{Datelike, Duration, NaiveDateTime, Utc};
+
+use std::env;
+const API_KEY: &str = "uilFVDFWvPNNFgPHkN47tl1vGeusng0H";
 pub fn fetch_search_result(stock: &str) -> Result<Vec<SearchQuote>, reqwest::Error> {
-    let api_key = env::var("STOCK_API_KEY").unwrap();
     let body = reqwest::blocking::Client::new()
         .get("https://financialmodelingprep.com/api/v3/search")
-        .query(&[("query", stock), ("limit", "10"), ("apikey", &api_key)])
+        .query(&[("query", stock), ("limit", "10"), ("apikey", API_KEY)])
         .send()?
         .json::<Vec<SearchQuote>>()?;
     Ok(body)
 }
 
 pub fn fetch_stock(stock: &str) -> Result<Quote, reqwest::Error> {
-    let api_key = env::var("STOCK_API_KEY").unwrap();
     let url = String::from("https://financialmodelingprep.com/api/v3/quote/") + stock;
     let body = reqwest::blocking::Client::new()
         .get(url)
-        .query(&[("apikey", &api_key)])
+        .query(&[("apikey", API_KEY)])
         .send()?
         .json::<Vec<Quote>>()?;
     Ok(body[0].clone())
@@ -60,7 +60,6 @@ pub fn fetch_sma(stock: &str, period: &str) -> Result<Vec<ChartDP>, reqwest::Err
 pub fn parse_chart_point(point: &ChartDP, year: i32) -> Option<(f64, f64)> {
     // Parse the date string to NaiveDateTime
     let datetime = NaiveDateTime::parse_from_str(&point.date, "%Y-%m-%d %H:%M:%S").ok()?;
-
     // Check if the year matches
     if datetime.year() == year {
         // Combine month and day into an f64 in MMDD format
@@ -135,4 +134,27 @@ pub fn get_top_gainers() -> Result<Vec<Top>, reqwest::Error> {
         .send()?
         .json::<Vec<Top>>()?;
     Ok(body)
+}
+
+pub fn fetch_historical_data(
+    symbol: &str,
+    from: &str,
+    to: &str,
+) -> Result<StockData, reqwest::Error> {
+    let url = format!(
+        "https://financialmodelingprep.com/api/v3/historical-price-full/{}",
+        symbol
+    );
+    let body = reqwest::blocking::Client::new()
+        .get(&url)
+        .query(&[("apikey", API_KEY), ("from", from), ("to", to)])
+        .send()?
+        .json::<StockData>()?;
+    Ok(body)
+}
+
+pub fn get_date_range_30_days() -> (String, String) {
+    let today = Utc::now().naive_utc().date();
+    let thirty_days_ago = today - Duration::days(30);
+    (thirty_days_ago.to_string(), today.to_string())
 }
