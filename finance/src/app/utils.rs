@@ -1,24 +1,34 @@
 use super::model::StockList;
 use super::model::{ChartDP, Company, Quote, SearchQuote, StockData, Top};
-
 use chrono::{Datelike, Duration, NaiveDateTime, Utc};
-
 use std::env;
+
 const API_KEY: &str = "uilFVDFWvPNNFgPHkN47tl1vGeusng0H";
+
+// If the environment variable is set, use it. Otherwise, use the default API key.
+fn get_api_key() -> String {
+    match env::var("STOCK_API_KEY") {
+        Ok(key) => key,
+        Err(_) => String::from(API_KEY),
+    }
+}
+
 pub fn fetch_search_result(stock: &str) -> Result<Vec<SearchQuote>, reqwest::Error> {
+    let api_key = get_api_key();
     let body = reqwest::blocking::Client::new()
         .get("https://financialmodelingprep.com/api/v3/search")
-        .query(&[("query", stock), ("limit", "10"), ("apikey", API_KEY)])
+        .query(&[("query", stock), ("limit", "10"), ("apikey", &api_key)])
         .send()?
         .json::<Vec<SearchQuote>>()?;
     Ok(body)
 }
 
 pub fn fetch_stock(stock: &str) -> Result<Quote, reqwest::Error> {
+    let api_key = get_api_key();
     let url = String::from("https://financialmodelingprep.com/api/v3/quote/") + stock;
     let body = reqwest::blocking::Client::new()
         .get(url)
-        .query(&[("apikey", API_KEY)])
+        .query(&[("apikey", api_key)])
         .send()?
         .json::<Vec<Quote>>()?;
     Ok(body[0].clone())
@@ -42,7 +52,7 @@ pub fn save_quotes_name(stocklist: StockList) {
 }
 
 pub fn fetch_sma(stock: &str, period: &str) -> Result<Vec<ChartDP>, reqwest::Error> {
-    let api_key = env::var("STOCK_API_KEY").unwrap();
+    let api_key = get_api_key();
     let url =
         String::from("https://financialmodelingprep.com/api/v3/technical_indicator/1day/") + stock;
     let body = reqwest::blocking::Client::new()
@@ -115,7 +125,7 @@ pub fn get_bounds(data1: &[(f64, f64)], data2: &[(f64, f64)]) -> ((f64, f64), (f
 }
 
 pub fn get_company(stock: &str) -> Result<Company, reqwest::Error> {
-    let api_key = env::var("STOCK_API_KEY").unwrap();
+    let api_key = get_api_key();
     let url = String::from("https://financialmodelingprep.com/api/v3/profile/") + stock;
     let body = reqwest::blocking::Client::new()
         .get(url)
@@ -126,7 +136,7 @@ pub fn get_company(stock: &str) -> Result<Company, reqwest::Error> {
 }
 // https://financialmodelingprep.com/api/v3/stock_market/gainers
 pub fn get_top_gainers() -> Result<Vec<Top>, reqwest::Error> {
-    let api_key = env::var("STOCK_API_KEY").unwrap();
+    let api_key = get_api_key();
     let url = "https://financialmodelingprep.com/api/v3/stock_market/gainers";
     let body = reqwest::blocking::Client::new()
         .get(url)
@@ -141,13 +151,14 @@ pub fn fetch_historical_data(
     from: &str,
     to: &str,
 ) -> Result<StockData, reqwest::Error> {
+    let api_key = get_api_key();
     let url = format!(
         "https://financialmodelingprep.com/api/v3/historical-price-full/{}",
         symbol
     );
     let body = reqwest::blocking::Client::new()
         .get(&url)
-        .query(&[("apikey", API_KEY), ("from", from), ("to", to)])
+        .query(&[("from", from), ("to", to), ("apikey", &api_key)])
         .send()?
         .json::<StockData>()?;
     Ok(body)
