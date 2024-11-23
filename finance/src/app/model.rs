@@ -4,6 +4,7 @@ pub enum Screen {
     Stock,
     Search,
     Analytics,
+    News,
 }
 pub enum InputMode {
     Normal,

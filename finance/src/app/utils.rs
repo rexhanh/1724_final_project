@@ -1,8 +1,8 @@
 use super::model::StockList;
 use super::model::{ChartDP, Company, NewsData, Quote, SearchQuote, StockData, Top};
 use chrono::{Datelike, Duration, NaiveDateTime, Utc};
+use scraper::{Html, Selector};
 use std::env;
-
 const API_KEY: &str = "uilFVDFWvPNNFgPHkN47tl1vGeusng0H";
 
 // If the environment variable is set, use it. Otherwise, use the default API key.
@@ -175,8 +175,17 @@ pub fn get_news() -> Result<NewsData, reqwest::Error> {
     let url = "https://financialmodelingprep.com/api/v3/fmp/articles";
     let body = reqwest::blocking::Client::new()
         .get(url)
-        .query(&[("page", "0"), ("size", "5"), ("apikey", &api_key)])
+        .query(&[("page", "0"), ("size", "10"), ("apikey", &api_key)])
         .send()?
         .json::<NewsData>()?;
     Ok(body)
+}
+
+pub fn parse_news(html: Html) -> Vec<String> {
+    let selector = Selector::parse("p").expect("Failed to parse selector");
+    let mut paragraphs = Vec::new();
+    for node in html.select(&selector) {
+        paragraphs.push(node.text().collect());
+    }
+    paragraphs
 }
