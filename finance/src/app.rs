@@ -14,11 +14,13 @@ use ratatui::{
     DefaultTerminal, Frame,
 };
 mod model;
-pub use model::{App, InputMode, Quote, Screen, SearchList, StockData, StockList};
+pub use model::{
+    App, InputMode, NewsList, Quote, Screen, SearchList, SelectedList, StockData, StockList,
+};
 mod utils;
 pub use utils::{
     fetch_historical_data, fetch_search_result, fetch_sma, fetch_stock, get_bounds, get_company,
-    get_date_range_30_days, get_top_gainers, parse_chart_point, read_saved_quotes_name,
+    get_date_range_30_days, get_news, get_top_gainers, parse_chart_point, read_saved_quotes_name,
     save_quotes_name,
 };
 
@@ -45,6 +47,24 @@ impl SearchList {
     fn clear(&mut self) {
         self.stocks = vec![];
         self.state = ListState::default();
+    }
+}
+
+impl NewsList {
+    fn new() -> Self {
+        match get_news() {
+            Ok(news) => {
+                let n = news.content;
+                Self {
+                    news: n,
+                    state: ListState::default(),
+                }
+            }
+            Err(_) => Self {
+                news: vec![],
+                state: ListState::default(),
+            },
+        }
     }
 }
 
@@ -80,6 +100,7 @@ impl App {
             Err(_) => vec![], // Handle any errors by setting an empty list
         };
 
+        let news_list = NewsList::new();
         Self {
             should_quit: false,
             stock_list,
@@ -94,6 +115,8 @@ impl App {
             company: None,
             sma_5days: vec![],
             sma_30days: vec![],
+            news_list,
+            selected_list: SelectedList::Stock,
         }
     }
 
@@ -127,7 +150,8 @@ impl App {
             KeyCode::Esc => self.exit(),
             KeyCode::Down => self.select_next(),
             KeyCode::Up => self.select_previous(),
-            KeyCode::Left => self.select_none(),
+            KeyCode::Left => self.select_left(), //self.select_none(),
+            KeyCode::Right => self.select_right(),
             KeyCode::Char('s') => {
                 self.search_list.clear();
                 self.screen = Screen::Search;
@@ -210,17 +234,58 @@ impl App {
     }
 
     fn select_next(&mut self) {
-        self.stock_list.state.select_next();
+        // self.stock_list.state.select_next();
+        match self.selected_list {
+            SelectedList::None => {}
+            SelectedList::Stock => {
+                self.stock_list.state.select_next();
+            }
+            SelectedList::News => {
+                self.news_list.state.select_next();
+            }
+        }
     }
 
     fn select_previous(&mut self) {
-        self.stock_list.state.select_previous();
+        match self.selected_list {
+            SelectedList::None => {}
+            SelectedList::Stock => {
+                self.stock_list.state.select_previous();
+            }
+            SelectedList::News => {
+                self.news_list.state.select_previous();
+            }
+        }
     }
 
-    fn select_none(&mut self) {
-        self.stock_list.state.select(None);
+    fn select_left(&mut self) {
+        match self.selected_list {
+            SelectedList::None => {}
+            SelectedList::Stock => {
+                self.stock_list.state.select(None);
+                self.selected_list = SelectedList::None;
+            }
+            SelectedList::News => {
+                self.news_list.state.select(None);
+                self.stock_list.state.select(Some(0));
+                self.selected_list = SelectedList::Stock;
+            }
+        }
     }
-
+    fn select_right(&mut self) {
+        match self.selected_list {
+            SelectedList::None => {
+                self.stock_list.state.select(Some(0));
+                self.selected_list = SelectedList::Stock;
+            }
+            SelectedList::Stock => {
+                self.stock_list.state.select(None);
+                self.news_list.state.select(Some(0));
+                self.selected_list = SelectedList::News;
+            }
+            SelectedList::News => {}
+        }
+    }
     fn select_next_search(&mut self) {
         self.search_list.state.select_next();
     }
@@ -260,7 +325,6 @@ impl App {
             Screen::Stock => self.draw_stock_screen(frame),
             Screen::Search => self.draw_search_screen(frame),
             Screen::Analytics => {
-                // self.draw_analytics_screen(frame);
                 if self.stock_list.state.selected().is_some() {
                     self.draw_analytics_screen(frame);
                 }
@@ -280,14 +344,19 @@ impl App {
             Layout::horizontal([Constraint::Percentage(10), Constraint::Percentage(90)])
                 .areas(main_area);
 
-        let [_chart_area, info_area] =
+        let [_chart_area, info_main_area] =
             Layout::vertical([Constraint::Percentage(70), Constraint::Percentage(30)])
                 .areas(item_area);
+
+        let [info_area, _news_area] =
+            Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
+                .areas(info_main_area);
         App::render_header(header_area, frame.buffer_mut());
         self.render_list(list_area, frame.buffer_mut());
         self.render_selected_item(info_area, frame.buffer_mut());
         self.render_chart(_chart_area, frame);
         self.render_footer(_footer_area, frame.buffer_mut());
+        self.render_news(_news_area, frame);
     }
 
     fn draw_search_screen(&mut self, frame: &mut Frame) {
@@ -360,7 +429,10 @@ impl App {
     }
 
     fn render_list(&mut self, area: Rect, buf: &mut Buffer) {
-        let block = Block::new().title(Line::raw("Stocks").left_aligned().bold().bg(Color::Cyan));
+        let block = Block::new()
+            .title(Line::raw("Stocks").left_aligned().bold())
+            .borders(Borders::ALL)
+            .border_set(symbols::border::THICK);
 
         let items: Vec<ListItem> = self
             .stock_list
@@ -487,71 +559,6 @@ impl App {
 
             frame.render_widget(paragraph, area); // Use `render_widget` here as well
         }
-        //     // Process and render the historical data as shown previously
-        //     let dps: Vec<(f64, f64)> = historical_data
-        //         .historical
-        //         .iter()
-        //         .enumerate()
-        //         .map(|(i, data)| (i as f64, data.close))
-        //         .collect();
-
-        //     // Calculate chart bounds as done previously
-        //     let y_min = dps.iter().map(|(_, y)| *y).fold(f64::INFINITY, f64::min);
-        //     let y_max = dps.iter().map(|(_, y)| *y).fold(f64::NEG_INFINITY, f64::max);
-        //     let x_min = 0.0;
-        //     let x_max = dps.len() as f64 - 1.0;
-
-        //     // Render the chart using `dps`
-        //     let chart = Chart::new(vec![
-        //         Dataset::default()
-        //             .name("Close Price")
-        //             .marker(symbols::Marker::Braille)
-        //             .style(Style::default().fg(Color::Yellow))
-        //             .graph_type(GraphType::Line)
-        //             .data(&dps),
-        //     ])
-        //     .block(
-        //         Block::default()
-        //             .title(Line::raw("1-Month Price History").centered())
-        //             .borders(Borders::ALL)
-        //     )
-        //     .x_axis(
-        //         Axis::default()
-        //             .title("Days")
-        //             .style(Style::default().gray())
-        //             .bounds([x_min, x_max])
-        //             .labels(
-        //                 dps.iter()
-        //                     .step_by(5)
-        //                     .map(|(x, _)| Line::from(format!("{:.0}", x)))
-        //                     .collect::<Vec<Line>>(),
-        //             ),
-        //     )
-        //     .y_axis(
-        //         Axis::default()
-        //             .title("Close Price")
-        //             .style(Style::default().gray())
-        //             .bounds([y_min, y_max])
-        //             .labels(vec![
-        //                 Line::from(format!("{:.2}", y_min)),
-        //                 Line::from(format!("{:.2}", (y_min + y_max) / 2.0)),
-        //                 Line::from(format!("{:.2}", y_max)),
-        //             ]),
-        //     );
-
-        //     frame.render_widget(chart, area);
-
-        // } else {
-        //     let block = Block::default()
-        //     .title(Line::raw("Chart").centered())
-        //     .borders(Borders::ALL)
-        //     .border_set(symbols::border::THICK);
-
-        //     let paragraph = Paragraph::new("Nothing selected...")
-        //         .block(block);
-
-        //     frame.render_widget(paragraph, area); // Use `render_widget` here as well
-        // }
     }
 
     fn render_footer(&self, area: Rect, buf: &mut Buffer) {
@@ -560,6 +567,22 @@ impl App {
             .render(area, buf);
     }
 
+    fn render_news(&mut self, area: Rect, frame: &mut Frame) {
+        let block = Block::new()
+            .title(Line::raw("General News").centered())
+            .borders(Borders::ALL)
+            .border_set(symbols::border::THICK);
+
+        // Define the news content
+        let items: Vec<ListItem> = self
+            .news_list
+            .news
+            .iter()
+            .map(|news| ListItem::new(news.title.clone()))
+            .collect();
+        let list = List::new(items).block(block).highlight_symbol(">");
+        StatefulWidget::render(list, area, frame.buffer_mut(), &mut self.news_list.state);
+    }
     fn render_search_footer(&self, area: Rect, buf: &mut Buffer) {
         match self.input_mode {
             InputMode::Normal => self.render_normal_footer(area, buf),

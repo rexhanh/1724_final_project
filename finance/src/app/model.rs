@@ -9,6 +9,12 @@ pub enum InputMode {
     Normal,
     Editing,
 }
+
+pub enum SelectedList {
+    None,
+    Stock,
+    News,
+}
 pub struct App {
     pub should_quit: bool,
     pub stock_list: StockList,
@@ -23,6 +29,8 @@ pub struct App {
     pub company: Option<Company>,
     pub sma_5days: Vec<ChartDP>,
     pub sma_30days: Vec<ChartDP>,
+    pub news_list: NewsList,
+    pub selected_list: SelectedList,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -55,6 +63,21 @@ pub struct SearchList {
     pub state: ListState,
 }
 
+pub struct NewsList {
+    pub news: Vec<News>,
+    pub state: ListState,
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct News {
+    pub title: String,
+    pub content: String,
+    pub author: String,
+    pub date: String,
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct NewsData {
+    pub content: Vec<News>,
+}
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChartDP {
     pub date: String,

@@ -1,5 +1,5 @@
 use super::model::StockList;
-use super::model::{ChartDP, Company, Quote, SearchQuote, StockData, Top};
+use super::model::{ChartDP, Company, NewsData, Quote, SearchQuote, StockData, Top};
 use chrono::{Datelike, Duration, NaiveDateTime, Utc};
 use std::env;
 
@@ -168,4 +168,15 @@ pub fn get_date_range_30_days() -> (String, String) {
     let today = Utc::now().naive_utc().date();
     let thirty_days_ago = today - Duration::days(30);
     (thirty_days_ago.to_string(), today.to_string())
+}
+
+pub fn get_news() -> Result<NewsData, reqwest::Error> {
+    let api_key = get_api_key();
+    let url = "https://financialmodelingprep.com/api/v3/fmp/articles";
+    let body = reqwest::blocking::Client::new()
+        .get(url)
+        .query(&[("page", "0"), ("size", "5"), ("apikey", &api_key)])
+        .send()?
+        .json::<NewsData>()?;
+    Ok(body)
 }
