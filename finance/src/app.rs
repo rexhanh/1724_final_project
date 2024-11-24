@@ -461,17 +461,25 @@ impl App {
             Constraint::Length(1),
         ])
         .areas(frame.area());
+        let selected_news = self.news_list.state.selected().unwrap();
+        let news = self.news_list.news[selected_news].clone();
         let block = Block::new()
-            .title(Line::raw("General News").centered())
+            .title(Line::raw(news.title).centered())
             .borders(Borders::ALL)
             .border_set(symbols::border::THICK);
         let t = self.news_list.state.selected();
         match t {
             Some(i) => {
-                let news = &self.news_list.news[i];
+                let news = self.news_list.news[i].clone();
                 let document = Html::parse_fragment(&news.content);
                 let paragraphs = parse_news(document).join("\n\n");
-                Paragraph::new(paragraphs)
+                let res = "Author: ".to_owned()
+                    + &news.author
+                    + "\nDate: "
+                    + &news.date
+                    + "\n\n"
+                    + &paragraphs;
+                Paragraph::new(res)
                     .block(block)
                     .wrap(Wrap { trim: true })
                     .render(main_area, frame.buffer_mut());
