@@ -18,12 +18,12 @@ pub use model::{
     App, InputMode, NewsList, Quote, Screen, SearchList, SelectedList, StockData, StockList,
 };
 mod utils;
+use scraper::Html;
 pub use utils::{
     fetch_historical_data, fetch_search_result, fetch_sma, fetch_stock, get_bounds, get_company,
-    get_date_range_30_days, get_news, get_top_gainers, parse_chart_point, read_saved_quotes_name,
-    save_quotes_name,
+    get_date_range_30_days, get_news, get_top_gainers, parse_chart_point, parse_news,
+    read_saved_quotes_name, save_quotes_name,
 };
-
 impl StockList {
     fn new() -> Self {
         Self {
@@ -136,6 +136,9 @@ impl App {
                     Screen::Stock => self.handle_stock_screen_key(key),
                     Screen::Search => self.handle_search_screen_key(key),
                     Screen::Analytics => self.handle_analytics_screen_key(key),
+                    Screen::News => {
+                        self.handle_news_screen_key(key);
+                    }
                 }
             };
         }
@@ -157,25 +160,41 @@ impl App {
                 self.screen = Screen::Search;
             }
             KeyCode::Enter => {
-                if self.stock_list.state.selected().is_some() {
-                    // If a stock is selected, go to the analytics screen
-                    // get selected stock
-                    let i = self.stock_list.state.selected().unwrap();
-                    let selected_stock = &self.stock_list.stocks[i];
-                    // get data for analytics sreen
-                    self.company = Some(get_company(&selected_stock.symbol).unwrap());
-                    self.sma_5days = fetch_sma(&selected_stock.symbol, "5").unwrap();
-                    self.sma_30days = fetch_sma(&selected_stock.symbol, "30").unwrap();
-
-                    // go to analytics screen
-                    self.screen = Screen::Analytics;
-                } else {
-                    // If no stock is selected, set a warning message
-                    self.status_message =
-                        String::from("Please select a stock before entering analytics.");
-                }
+                self.handle_enter();
             }
             _ => {}
+        }
+    }
+    fn handle_enter(&mut self) {
+        match self.selected_list {
+            SelectedList::None => {}
+            SelectedList::Stock => {
+                self.to_analytics_screen();
+            }
+            SelectedList::News => {
+                self.to_news_screen();
+            }
+        }
+    }
+    fn to_news_screen(&mut self) {
+        self.screen = Screen::News;
+    }
+    fn to_analytics_screen(&mut self) {
+        if self.stock_list.state.selected().is_some() {
+            // If a stock is selected, go to the analytics screen
+            // get selected stock
+            let i = self.stock_list.state.selected().unwrap();
+            let selected_stock = &self.stock_list.stocks[i];
+            // get data for analytics sreen
+            self.company = Some(get_company(&selected_stock.symbol).unwrap());
+            self.sma_5days = fetch_sma(&selected_stock.symbol, "5").unwrap();
+            self.sma_30days = fetch_sma(&selected_stock.symbol, "30").unwrap();
+
+            // go to analytics screen
+            self.screen = Screen::Analytics;
+        } else {
+            // If no stock is selected, set a warning message
+            self.status_message = String::from("Please select a stock before entering analytics.");
         }
     }
 
@@ -232,7 +251,18 @@ impl App {
             _ => {}
         }
     }
-
+    fn handle_news_screen_key(&mut self, key: KeyEvent) {
+        if key.kind != KeyEventKind::Press {
+            return;
+        }
+        match key.code {
+            KeyCode::Esc => self.exit(),
+            KeyCode::Char('h') => {
+                self.screen = Screen::Stock;
+            }
+            _ => {}
+        }
+    }
     fn select_next(&mut self) {
         // self.stock_list.state.select_next();
         match self.selected_list {
@@ -329,6 +359,9 @@ impl App {
                     self.draw_analytics_screen(frame);
                 }
             }
+            Screen::News => {
+                self.draw_news_screen(frame);
+            }
         }
     }
 
@@ -355,15 +388,15 @@ impl App {
         self.render_list(list_area, frame.buffer_mut());
         self.render_selected_item(info_area, frame.buffer_mut());
         self.render_chart(_chart_area, frame);
-        self.render_footer(_footer_area, frame.buffer_mut());
+        App::render_footer(_footer_area, frame.buffer_mut(), Screen::Stock);
         self.render_news(_news_area, frame);
     }
 
     fn draw_search_screen(&mut self, frame: &mut Frame) {
         let [input_area, main_area, _footer_area] = Layout::vertical([
+            Constraint::Length(5),
             Constraint::Fill(1),
-            Constraint::Percentage(70),
-            Constraint::Fill(1),
+            Constraint::Length(1),
         ])
         .areas(frame.area());
         let block = Block::new()
@@ -417,8 +450,48 @@ impl App {
             self.render_top_gainers(gainers_area, frame);
 
             // TODO Might need a new render for this screen
-            self.render_footer(footer_area, frame.buffer_mut());
+            App::render_footer(footer_area, frame.buffer_mut(), Screen::Analytics);
         }
+    }
+
+    fn draw_news_screen(&mut self, frame: &mut Frame) {
+        let [_header_area, main_area, _footer_area] = Layout::vertical([
+            Constraint::Length(2),
+            Constraint::Fill(1),
+            Constraint::Length(1),
+        ])
+        .areas(frame.area());
+        let selected_news = self.news_list.state.selected().unwrap();
+        let news = self.news_list.news[selected_news].clone();
+        let block = Block::new()
+            .title(Line::raw(news.title).centered())
+            .borders(Borders::ALL)
+            .border_set(symbols::border::THICK);
+        let t = self.news_list.state.selected();
+        match t {
+            Some(i) => {
+                let news = self.news_list.news[i].clone();
+                let document = Html::parse_fragment(&news.content);
+                let paragraphs = parse_news(document).join("\n\n");
+                let res = "Author: ".to_owned()
+                    + &news.author
+                    + "\nDate: "
+                    + &news.date
+                    + "\n\n"
+                    + &paragraphs;
+                Paragraph::new(res)
+                    .block(block)
+                    .wrap(Wrap { trim: true })
+                    .render(main_area, frame.buffer_mut());
+            }
+            None => {
+                Paragraph::new("No news selected")
+                    .wrap(Wrap { trim: true })
+                    .render(main_area, frame.buffer_mut());
+            }
+        }
+        App::render_header(_header_area, frame.buffer_mut());
+        App::render_footer(_footer_area, frame.buffer_mut(), Screen::News);
     }
 }
 
@@ -561,10 +634,21 @@ impl App {
         }
     }
 
-    fn render_footer(&self, area: Rect, buf: &mut Buffer) {
-        Paragraph::new("↓↑ to move, ← to unselect, s to search, Enter key to analytics from home with stock selected, Esc to quit")
-            .centered()
-            .render(area, buf);
+    fn render_footer(area: Rect, buf: &mut Buffer, screen: Screen) {
+        match screen {
+            Screen::Stock => {
+                Paragraph::new(
+                    "↓↑ to move, ← → to switch between stock and news, s to search, Enter to analytics or news, Esc to quit",
+                )
+                .centered()
+                .render(area, buf);
+            }
+            _ => {
+                Paragraph::new("h to return to home, Esc to quit")
+                    .centered()
+                    .render(area, buf);
+            }
+        }
     }
 
     fn render_news(&mut self, area: Rect, frame: &mut Frame) {
