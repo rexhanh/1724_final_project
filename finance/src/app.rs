@@ -394,9 +394,9 @@ impl App {
 
     fn draw_search_screen(&mut self, frame: &mut Frame) {
         let [input_area, main_area, _footer_area] = Layout::vertical([
+            Constraint::Length(5),
             Constraint::Fill(1),
-            Constraint::Percentage(70),
-            Constraint::Fill(1),
+            Constraint::Length(1),
         ])
         .areas(frame.area());
         let block = Block::new()
