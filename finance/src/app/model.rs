@@ -9,6 +9,13 @@ pub enum InputMode {
     Normal,
     Editing,
 }
+
+pub enum ChartMode {
+    Intraday,
+    ThirtyDays,
+    Year,
+}
+
 pub struct App {
     pub should_quit: bool,
     pub stock_list: StockList,
@@ -23,6 +30,7 @@ pub struct App {
     pub company: Option<Company>,
     pub sma_5days: Vec<ChartDP>,
     pub sma_30days: Vec<ChartDP>,
+    pub chart_mode: ChartMode,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -105,3 +113,4 @@ pub struct StockData {
     pub symbol: String,
     pub historical: Vec<HistoricalPrice>,
 }
+
