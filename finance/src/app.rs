@@ -1,4 +1,4 @@
-use chrono::{NaiveDate, Datelike};
+use chrono::{NaiveDate, Datelike,Utc, Weekday};
 use color_eyre::Result;
 use ratatui::{
     buffer::Buffer,
@@ -14,11 +14,12 @@ use ratatui::{
     DefaultTerminal, Frame,
 };
 mod model;
-pub use model::{App, InputMode, Quote, Screen, SearchList, StockList, StockData};
+pub use model::{App, InputMode, ChartMode, Quote, Screen, SearchList, StockList, StockData, HistoricalPrice};
 mod utils;
 pub use utils::{
     fetch_search_result, fetch_sma, fetch_stock, get_bounds, get_company, get_top_gainers,
-    parse_chart_point, fetch_historical_data, get_date_range_30_days, 
+    parse_chart_point, fetch_historical_data, get_date_range_30_days, fetch_intraday_data,
+    fetch_year_data,
 };
 
 impl StockList {
@@ -77,6 +78,7 @@ impl App {
             company: None,
             sma_5days: vec![],
             sma_30days: vec![],
+            chart_mode: ChartMode::Intraday, // Default mode set to Intraday
         }
     }
 
@@ -111,6 +113,15 @@ impl App {
             KeyCode::Down => self.select_next(),
             KeyCode::Up => self.select_previous(),
             KeyCode::Left => self.select_none(),
+            KeyCode::Char('m') => {
+                self.chart_mode = ChartMode::ThirtyDays;
+            }
+            KeyCode::Char('d') => {
+                self.chart_mode = ChartMode::Intraday;
+            }
+            KeyCode::Char('y') => {
+                self.chart_mode = ChartMode::Year;
+            }
             KeyCode::Char('s') => {
                 self.search_list.clear();
                 self.screen = Screen::Search;
@@ -250,7 +261,7 @@ impl App {
         let [header_area, main_area, _footer_area] = Layout::vertical([
             Constraint::Length(2),
             Constraint::Fill(1),
-            Constraint::Length(1),
+            Constraint::Length(2),
         ])
         .areas(frame.area());
 
@@ -381,158 +392,168 @@ impl App {
     
     fn render_chart(&self, area: Rect, frame: &mut Frame) {
         if let Some(i) = self.stock_list.state.selected() {
-            // Get the symbol of the selected stock
             let symbol = &self.stock_list.stocks[i].symbol;
     
-            // Use `get_date_range_30_days` to define the date range
-            let (from, to) = get_date_range_30_days();
+            // Fetch data based on the chart mode
+            let (chart_data, title, x_axis_labels, x_min, x_max) = match self.chart_mode {
+                ChartMode::Intraday => {
+                    // Get today's date
+                    let today = chrono::Utc::now().naive_utc().date();
+                    let target_date = match today.weekday() {
+                        Weekday::Sat => today - chrono::Duration::days(1), // Use Friday for Saturday
+                        Weekday::Sun => today - chrono::Duration::days(2), // Use Friday for Sunday
+                        _ => today, // Use today if it's a weekday
+                    };
 
-            // Fetch historical data
-            let historical_data = fetch_historical_data(symbol, &from, &to)
-                .unwrap_or_else(|_| StockData { symbol: symbol.to_string(), historical: vec![] });
+                    // Fetch intraday data
+                    let intraday_data = fetch_intraday_data(symbol, &target_date.to_string(), &target_date.to_string())
+                    .unwrap_or_else(|_| StockData {
+                        symbol: symbol.to_string(),
+                        historical: vec![],
+                    });
 
-            // Prepare data points for the chart in reverse order (newest data on the right)
-        let mut dps: Vec<(f64, f64)> = Vec::new();
-        let mut monday_labels: Vec<Line> = Vec::new();
-        
-        for (index, entry) in historical_data.historical.iter().rev().enumerate() {
-            // Parse the date string to NaiveDate
-            if let Ok(date) = NaiveDate::parse_from_str(&entry.date, "%Y-%m-%d") {
-                // Add the close price to data points in reverse order
-                dps.push((index as f64, entry.close));
+                    // Prepare data points for the chart
+                    let mut dps: Vec<(f64, f64)> = Vec::new();
+                    let mut x_labels: Vec<Line> = Vec::new();
 
-                // Check if the date is a Monday
-                if date.weekday() == chrono::Weekday::Mon {
-                    // Format the date as "MMM DD" and add to labels
-                    let label = date.format("%b %d").to_string();
-                    monday_labels.push(Line::from(Span::raw(label)));
+                    for (index, entry) in intraday_data.historical.iter().enumerate() {
+                        if let Ok(datetime) = chrono::NaiveDateTime::parse_from_str(&entry.date, "%Y-%m-%d %H:%M:%S") {
+                            // Add the close price to data points
+                            dps.push((index as f64, entry.close));
+
+                            // Add labels for specific times (e.g., 9:30 AM, 12:00 PM, 4:00 PM)
+                            let time_str = datetime.format("%H:%M").to_string();
+                            if time_str == "09:30" || time_str == "12:00" || time_str == "16:00" {
+                                x_labels.push(Line::from(Span::raw(time_str)));
+                            }
+                        }
+                    }
+
+                    // Calculate x-axis and y-axis bounds
+                    let x_min = 0.0;
+                    let x_max = dps.len() as f64 - 1.0;
+    
+
+                    (dps, "Intraday Chart (5 Min)", x_labels, x_min, x_max)
                 }
-            }
-        }
 
-                // Calculate y-axis bounds
-                let y_min = dps.iter().map(|(_, y)| *y).fold(f64::INFINITY, f64::min);
-                let y_max = dps.iter().map(|(_, y)| *y).fold(f64::NEG_INFINITY, f64::max);
-                let x_min = 0.0;
-                let x_max = dps.len() as f64 - 1.0;
+                ChartMode::ThirtyDays => {
+                    // Fetch 30-day historical data
+                    let (from, to) = get_date_range_30_days();
+                    let historical_data = fetch_historical_data(symbol, &from, &to)
+                        .unwrap_or_else(|_| StockData {
+                            symbol: symbol.to_string(),
+                            historical: vec![],
+                        });
+    
+                    // Prepare 30-day data points and labels
+                    let mut dps: Vec<(f64, f64)> = Vec::new();
+                    let mut monday_labels: Vec<Line> = Vec::new();
+    
+                    for (index, entry) in historical_data.historical.iter().rev().enumerate() {
+                        // Parse the date string to NaiveDate
+                        if let Ok(date) = NaiveDate::parse_from_str(&entry.date, "%Y-%m-%d") {
+                            // Add the close price to data points in reverse order
+                            dps.push((index as f64, entry.close));
+    
+                            // Check if the date is a Monday
+                            if date.weekday() == chrono::Weekday::Mon {
+                                // Format the date as "MMM DD" and add to labels
+                                let label = date.format("%b %d").to_string();
+                                monday_labels.push(Line::from(Span::raw(label)));
+                            }
+                        }
+                    }
+    
+                    // Calculate y-axis bounds
+                    let x_min = 0.0;
+                    let x_max = dps.len() as f64 - 1.0;
+    
+                    (dps, "1-Month Price History", monday_labels, x_min, x_max)
+                }
 
-                // Define the chart with datasets
-                let chart = Chart::new(vec![
-                    Dataset::default()
-                        .name("Close Price")
-                        .marker(symbols::Marker::Braille)
-                        .style(Style::default().fg(Color::Yellow))
-                        .graph_type(GraphType::Line)
-                        .data(&dps),
-                ])
-                .block(
-                    Block::default()
-                        .title(Line::raw("1-Month Price History").centered())
-                        .borders(Borders::ALL)
-                )
-                .x_axis(
-                    Axis::default()
-                        .title("Date")
-                        .style(Style::default().gray())
-                        .bounds([x_min, x_max])
-                        .labels(monday_labels), // Use only Monday labels
-                )
-                .y_axis(
-                    Axis::default()
-                        .title("Close Price")
-                        .style(Style::default().gray())
-                        .bounds([y_min, y_max])
-                        .labels(vec![
-                            Line::from(format!("{:.2}", y_min)),
-                            Line::from(format!("{:.2}", (y_min + y_max) / 2.0)),
-                            Line::from(format!("{:.2}", y_max)),
-                        ]),
-                );
+                ChartMode::Year => {
+                    // Fetch year data
+                    let year_data = fetch_year_data(symbol)
+                    .unwrap_or_else(|_| StockData {
+                        symbol: symbol.to_string(),
+                        historical: vec![],
+                    });
 
-                // Render the chart in the specified area
-                frame.render_widget(chart, area);
+                    // Prepare data points and labels
+                    let mut dps: Vec<(f64, f64)> = Vec::new();
+                    let mut x_labels: Vec<Line> = Vec::new();
 
+                    for (index, entry) in year_data.historical.iter().rev().enumerate() {
+                        if let Ok(date) = NaiveDate::parse_from_str(&entry.date, "%Y-%m-%d") {
+                            // Add the close price to data points in reverse order
+                            dps.push((index as f64, entry.close));
+
+                            // Add label every three months
+                            if index % 60 == 0 {
+                                let label = date.format("%b %Y").to_string();
+                                x_labels.push(Line::from(Span::raw(label)));
+                            }
+                        }
+                    }
+
+                    // Calculate x-axis bounds
+                    let x_min = 0.0;
+                    let x_max = dps.len() as f64 - 1.0;
+
+                    (dps, "1-Year Price History", x_labels, x_min, x_max)
+                }
+            };
+
+            // Calculate y-axis bounds
+            let y_min = chart_data.iter().map(|(_, y)| *y).fold(f64::INFINITY, f64::min);
+            let y_max = chart_data.iter().map(|(_, y)| *y).fold(f64::NEG_INFINITY, f64::max);
+
+            // Define the chart
+            let chart = Chart::new(vec![
+                Dataset::default()
+                    .marker(symbols::Marker::Braille)
+                    .style(Style::default().fg(Color::Yellow))
+                    .graph_type(GraphType::Line)
+                    .data(&chart_data),
+            ])
+            .block(Block::default().title(Line::raw(title).centered()).borders(Borders::ALL))
+            .x_axis(
+                Axis::default()
+                    .title("Time")
+                    .style(Style::default().gray())
+                    .bounds([x_min, x_max])
+                    .labels(x_axis_labels),
+            )
+            .y_axis(
+                Axis::default()
+                    .title("Price")
+                    .style(Style::default().gray())
+                    .bounds([y_min, y_max])
+                    .labels(vec![
+                        Line::from(format!("{:.2}", y_min)),
+                        Line::from(format!("{:.2}", (y_min + y_max) / 2.0)),
+                        Line::from(format!("{:.2}", y_max)),
+                    ]),
+            );
+
+            frame.render_widget(chart, area);
+    
         } else {
             let block = Block::default()
                 .title(Line::raw("Chart").centered())
                 .borders(Borders::ALL)
                 .border_set(symbols::border::THICK);
-
-            let paragraph = Paragraph::new("Nothing selected...")
-                .block(block);
-
-            frame.render_widget(paragraph, area); // Use `render_widget` here as well
+    
+            let paragraph = Paragraph::new("Nothing selected...").block(block);
+            frame.render_widget(paragraph, area);
         }
-        //     // Process and render the historical data as shown previously
-        //     let dps: Vec<(f64, f64)> = historical_data
-        //         .historical
-        //         .iter()
-        //         .enumerate()
-        //         .map(|(i, data)| (i as f64, data.close))
-        //         .collect();
-    
-        //     // Calculate chart bounds as done previously
-        //     let y_min = dps.iter().map(|(_, y)| *y).fold(f64::INFINITY, f64::min);
-        //     let y_max = dps.iter().map(|(_, y)| *y).fold(f64::NEG_INFINITY, f64::max);
-        //     let x_min = 0.0;
-        //     let x_max = dps.len() as f64 - 1.0;
-    
-        //     // Render the chart using `dps`
-        //     let chart = Chart::new(vec![
-        //         Dataset::default()
-        //             .name("Close Price")
-        //             .marker(symbols::Marker::Braille)
-        //             .style(Style::default().fg(Color::Yellow))
-        //             .graph_type(GraphType::Line)
-        //             .data(&dps),
-        //     ])
-        //     .block(
-        //         Block::default()
-        //             .title(Line::raw("1-Month Price History").centered())
-        //             .borders(Borders::ALL)
-        //     )
-        //     .x_axis(
-        //         Axis::default()
-        //             .title("Days")
-        //             .style(Style::default().gray())
-        //             .bounds([x_min, x_max])
-        //             .labels(
-        //                 dps.iter()
-        //                     .step_by(5)
-        //                     .map(|(x, _)| Line::from(format!("{:.0}", x)))
-        //                     .collect::<Vec<Line>>(),
-        //             ),
-        //     )
-        //     .y_axis(
-        //         Axis::default()
-        //             .title("Close Price")
-        //             .style(Style::default().gray())
-        //             .bounds([y_min, y_max])
-        //             .labels(vec![
-        //                 Line::from(format!("{:.2}", y_min)),
-        //                 Line::from(format!("{:.2}", (y_min + y_max) / 2.0)),
-        //                 Line::from(format!("{:.2}", y_max)),
-        //             ]),
-        //     );
-            
-        //     frame.render_widget(chart, area);
-            
-        // } else {
-        //     let block = Block::default()
-        //     .title(Line::raw("Chart").centered())
-        //     .borders(Borders::ALL)
-        //     .border_set(symbols::border::THICK);
-
-        //     let paragraph = Paragraph::new("Nothing selected...")
-        //         .block(block);
-
-        //     frame.render_widget(paragraph, area); // Use `render_widget` here as well
-        // }
         
     }
 
     fn render_footer(&self, area: Rect, buf: &mut Buffer) {
-        Paragraph::new("↓↑ to move, ← to unselect, s to search, Enter key to analytics from home with stock selected, Esc to quit")
+        Paragraph::new("↓↑ to move, ← to unselect, s to search, d to view daily chart, m to view monthly chart, y to view yearly chart,
+            Enter key to analytics from home with stock selected, Esc to quit")
             .centered()
             .render(area, buf);
     }
