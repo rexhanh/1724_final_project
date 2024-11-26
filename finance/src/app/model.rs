@@ -16,6 +16,13 @@ pub enum SelectedList {
     Stock,
     News,
 }
+
+pub enum ChartMode {
+    Intraday,
+    Month,
+    Year,
+}
+
 pub struct App {
     pub should_quit: bool,
     pub stock_list: StockList,
@@ -32,6 +39,7 @@ pub struct App {
     pub sma_30days: Vec<ChartDP>,
     pub news_list: NewsList,
     pub selected_list: SelectedList,
+    pub chart_mode: ChartMode,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -114,13 +122,11 @@ pub struct Top {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct HistoricalPrice {
-    pub date: String,
+    pub date: String,   
     pub open: f64,
-    pub high: f64,
     pub low: f64,
+    pub high: f64,
     pub close: f64,
-    #[serde(rename = "adjClose")]
-    pub adj_close: f64,
     pub volume: u64,
 }
 
