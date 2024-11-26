@@ -1,9 +1,15 @@
-use super::model::StockList;
-use super::model::{ChartDP, Company, NewsData, Quote, SearchQuote, StockData, Top};
+use super::model::{ChartDP, Company, NewsData, Quote, SearchQuote, StockData, Top, StockList, HistoricalPrice};
 use chrono::{Datelike, Duration, NaiveDateTime, Utc};
 use scraper::{Html, Selector};
 use std::env;
-const API_KEY: &str = "uilFVDFWvPNNFgPHkN47tl1vGeusng0H";
+const API_KEY: &str = "H7iSor1eE79j32YkLqY0czsSfJXhUcDr";
+// BKo3pwdgStNm3rfLEHuit71sK0mvJBCZ
+// uilFVDFWvPNNFgPHkN47tl1vGeusng0H
+// Bt08M78UNw8jLzvmLk1Bl6s07Gc2rSt6 
+// 77iRkUzOmkrSxwfuO3Mb8t7gLd6dP9yg
+// H7iSor1eE79j32YkLqY0czsSfJXhUcDr
+// Qxk93ZPLycDgwKFc0NILS8yzwTsi8a0y
+
 
 // If the environment variable is set, use it. Otherwise, use the default API key.
 fn get_api_key() -> String {
@@ -146,11 +152,42 @@ pub fn get_top_gainers() -> Result<Vec<Top>, reqwest::Error> {
     Ok(body)
 }
 
-pub fn fetch_historical_data(
-    symbol: &str,
-    from: &str,
-    to: &str,
-) -> Result<StockData, reqwest::Error> {
+pub fn fetch_intraday_data(symbol: &str) -> Result<Vec<HistoricalPrice>, reqwest::Error> {
+    let mut current_date = Utc::now().naive_utc().date();
+
+    loop {
+        let current_date_str = current_date.format("%Y-%m-%d").to_string();
+
+        // Fetch intraday data for the current date
+        let url = format!(
+            "https://financialmodelingprep.com/api/v3/historical-chart/5min/{}",
+            symbol
+        );
+        let response = reqwest::blocking::Client::new()
+            .get(&url)
+            .query(&[
+                ("apikey", API_KEY),
+                ("from", &current_date_str),
+                ("to", &current_date_str),
+            ])
+            .send();
+
+        if let Ok(res) = response {
+            if res.status().is_success() {
+                let data = res.json::<Vec<HistoricalPrice>>()?;
+                if !data.is_empty() {
+                    // If data exists, return it
+                    return Ok(data);
+                }
+            }
+        }
+
+        // If no data, decrement the date and continue
+        current_date = current_date - Duration::days(1);
+    }
+}
+
+pub fn fetch_historical_data(symbol: &str,from: &str,to: &str,) -> Result<StockData, reqwest::Error> {
     let api_key = get_api_key();
     let url = format!(
         "https://financialmodelingprep.com/api/v3/historical-price-full/{}",
@@ -158,16 +195,26 @@ pub fn fetch_historical_data(
     );
     let body = reqwest::blocking::Client::new()
         .get(&url)
-        .query(&[("from", from), ("to", to), ("apikey", &api_key)])
+        .query(&[
+            ("from", from), 
+            ("to", to), 
+            ("apikey", &api_key)
+        ])
         .send()?
         .json::<StockData>()?;
     Ok(body)
 }
 
-pub fn get_date_range_30_days() -> (String, String) {
+pub fn get_month_data_range() -> (String, String) {
     let today = Utc::now().naive_utc().date();
-    let thirty_days_ago = today - Duration::days(30);
-    (thirty_days_ago.to_string(), today.to_string())
+    let one_month_ago = today - Duration::days(30);
+    (one_month_ago.to_string(), today.to_string())
+}
+
+pub fn get_year_data_range() -> (String, String) {
+    let today = Utc::now().naive_utc().date();
+    let one_year_ago = today - Duration::days(365);
+    (one_year_ago.to_string(), today.to_string())
 }
 
 pub fn get_news() -> Result<NewsData, reqwest::Error> {
