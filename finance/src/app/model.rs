@@ -122,7 +122,7 @@ pub struct Top {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct HistoricalPrice {
-    pub date: String,   
+    pub date: String,
     pub open: f64,
     pub low: f64,
     pub high: f64,
