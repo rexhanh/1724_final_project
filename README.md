@@ -12,6 +12,28 @@ cd 1724_final_project/finance
 cargo run
 ```
 
+## Features
+
+### Feature 1: Main Screen
+
+![alt text](images/main_screen.png)
+
+#### Main Screen Chart
+
+![alt text](images/chart.gif)
+
+### Feature 2: Search Stock Screen
+
+![alt text](images/search_screen.gif)
+
+### Feature 3: News Screen
+
+![alt text](/images/news_screen.gif)
+
+### Feature 4: Analytics Screen
+
+![alt text](/images/analytics_screen.png)
+
 ## Video Demo
 
 to be added...
