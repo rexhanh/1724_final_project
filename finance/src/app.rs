@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use chrono::{Datelike, NaiveDate, Timelike};
 use color_eyre::Result;
 use ratatui::{
@@ -15,8 +17,8 @@ use ratatui::{
 };
 mod model;
 pub use model::{
-    App, ChartMode, InputMode, NewsList, Quote, Screen, SearchList, SelectedList, StockData,
-    StockList,
+    App, ChartMode, InputMode, NewsList, Quote, Screen, SearchList, SelectedList,
+    StockHistoricalData, StockList,
 };
 mod utils;
 use scraper::Html;
@@ -78,11 +80,25 @@ impl Default for App {
 impl App {
     fn new() -> Self {
         let mut stock_list = StockList::new();
+        let mut stock_data_list: HashMap<String, StockHistoricalData> = HashMap::new();
         // Read saved quotes from file and add them to the stock list
         match read_saved_quotes_name() {
             Ok(names) => {
                 for name in names {
                     let stock = fetch_stock(&name);
+                    let (from, to) = get_month_data_range();
+                    let monthly_data = fetch_historical_data(&name, &from, &to).expect("Error");
+                    let intra_day_data = fetch_intraday_data(&name).expect("Error");
+                    let (from, to) = get_year_data_range();
+                    let yearly_data = fetch_historical_data(&name, &from, &to).expect("Error");
+                    stock_data_list.insert(
+                        name.clone(),
+                        StockHistoricalData {
+                            monthly: monthly_data.historical,
+                            daily: intra_day_data,
+                            yearly: yearly_data.historical,
+                        },
+                    );
                     match stock {
                         Ok(stock) => {
                             stock_list.add_stock(stock);
@@ -119,6 +135,7 @@ impl App {
             news_list,
             selected_list: SelectedList::Stock,
             chart_mode: ChartMode::Intraday, // Default mode set to Intraday
+            stock_data_list,
         }
     }
 
@@ -346,6 +363,21 @@ impl App {
         if let Some(i) = self.search_list.state.selected() {
             let stock_symbol = self.search_list.stocks[i].clone().symbol;
             let stock = fetch_stock(&stock_symbol);
+            // Fetch Historical data for the stock
+            let (from, to) = get_month_data_range();
+            let monthly_data = fetch_historical_data(&stock_symbol, &from, &to).expect("Error");
+            let intra_day_data = fetch_intraday_data(&stock_symbol).expect("Error");
+            let (from, to) = get_year_data_range();
+            let yearly_data = fetch_historical_data(&stock_symbol, &from, &to).expect("Error");
+            self.stock_data_list.insert(
+                stock_symbol,
+                StockHistoricalData {
+                    monthly: monthly_data.historical,
+                    daily: intra_day_data,
+                    yearly: yearly_data.historical,
+                },
+            );
+
             match stock {
                 Ok(stock) => {
                     self.stock_list.add_stock(stock);
@@ -565,7 +597,7 @@ impl App {
             let (chart_data, title, x_axis_labels, x_min, x_max) = match self.chart_mode {
                 ChartMode::Intraday => {
                     // Fetch the most recent intraday data (starting with 2024-11-22 for testing)
-                    let intraday_data = fetch_intraday_data(symbol).unwrap_or_else(|_| vec![]);
+                    let intraday_data = &self.stock_data_list.get(symbol).unwrap().daily;
 
                     // Get the date of the intraday data
                     let chart_date = &intraday_data.first().unwrap().date[..10]; // Extract YYYY-MM-DD
@@ -580,14 +612,12 @@ impl App {
 
                     // Map trading hours to x-axis indices
                     let total_minutes = 390.0; // Total trading minutes: 9:30 AM to 4:00 PM
-
                     for entry in intraday_data.iter() {
                         if let Ok(datetime) =
                             chrono::NaiveDateTime::parse_from_str(&entry.date, "%Y-%m-%d %H:%M:%S")
                         {
                             // Calculate minutes since market open (9:30 AM = 570 minutes since midnight)
                             let minutes_since_open = datetime.hour() * 60 + datetime.minute() - 570;
-
                             if i64::from(minutes_since_open) <= total_minutes as i64 {
                                 // Calculate normalized x value (position on the x-axis)
                                 let x_index = (minutes_since_open as f64 / total_minutes)
@@ -618,18 +648,12 @@ impl App {
 
                 ChartMode::Month => {
                     // Fetch 30-day historical data
-                    let (from, to) = get_month_data_range();
-                    let month_data =
-                        fetch_historical_data(symbol, &from, &to).unwrap_or_else(|_| StockData {
-                            symbol: symbol.to_string(),
-                            historical: vec![],
-                        });
-
+                    let month_data = self.stock_data_list.get(symbol).unwrap();
                     // Prepare 30-day data points and labels
                     let mut dps: Vec<(f64, f64)> = Vec::new();
                     let mut monday_labels: Vec<Line> = Vec::new();
 
-                    for (index, entry) in month_data.historical.iter().rev().enumerate() {
+                    for (index, entry) in month_data.monthly.iter().rev().enumerate() {
                         // Parse the date string to NaiveDate
                         if let Ok(date) = NaiveDate::parse_from_str(&entry.date, "%Y-%m-%d") {
                             // Add the close price to data points in reverse order
@@ -659,18 +683,13 @@ impl App {
 
                 ChartMode::Year => {
                     // Fetch year data
-                    let (from, to) = get_year_data_range();
-                    let year_data =
-                        fetch_historical_data(symbol, &from, &to).unwrap_or_else(|_| StockData {
-                            symbol: symbol.to_string(),
-                            historical: vec![],
-                        });
+                    let year_data = self.stock_data_list.get(symbol).unwrap();
 
                     // Prepare data points and labels
                     let mut dps: Vec<(f64, f64)> = Vec::new();
                     let mut x_labels: Vec<Line> = Vec::new();
 
-                    for (index, entry) in year_data.historical.iter().rev().enumerate() {
+                    for (index, entry) in year_data.yearly.iter().rev().enumerate() {
                         if let Ok(date) = NaiveDate::parse_from_str(&entry.date, "%Y-%m-%d") {
                             // Add the close price to data points in reverse order
                             dps.push((index as f64, entry.close));

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use ratatui::widgets::ListState;
 use serde::{Deserialize, Serialize};
 pub enum Screen {
@@ -40,6 +42,7 @@ pub struct App {
     pub news_list: NewsList,
     pub selected_list: SelectedList,
     pub chart_mode: ChartMode,
+    pub stock_data_list: HashMap<String, StockHistoricalData>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -134,4 +137,10 @@ pub struct HistoricalPrice {
 pub struct StockData {
     pub symbol: String,
     pub historical: Vec<HistoricalPrice>,
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct StockHistoricalData {
+    pub daily: Vec<HistoricalPrice>,
+    pub monthly: Vec<HistoricalPrice>,
+    pub yearly: Vec<HistoricalPrice>,
 }
