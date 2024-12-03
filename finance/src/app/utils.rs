@@ -1,7 +1,9 @@
 use super::model::{
     ChartDP, Company, HistoricalPrice, NewsData, Quote, SearchQuote, StockData, StockList, Top,
 };
-use chrono::{Datelike, Duration, NaiveDateTime, Utc, Weekday, NaiveDate, NaiveTime, FixedOffset, Local};
+use chrono::{
+    DateTime, Datelike, Duration, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, Utc, Weekday,
+};
 use scraper::{Html, Selector};
 use std::env;
 const API_KEY: &str = "uilFVDFWvPNNFgPHkN47tl1vGeusng0H";
@@ -154,26 +156,24 @@ pub fn get_top_gainers() -> Result<Vec<Top>, reqwest::Error> {
 }
 
 pub fn fetch_intraday_data(symbol: &str) -> Result<Vec<HistoricalPrice>, reqwest::Error> {
-    // let mut current_date = Utc::now().naive_utc().date();
-        let current_date = get_most_recent_trading_day();
-        let current_date_str = current_date.format("%Y-%m-%d").to_string();
+    let current_date = get_most_recent_trading_day_from(Utc::now());
+    let current_date_str = current_date.format("%Y-%m-%d").to_string();
 
-        // Fetch intraday data for the current date
-        let url = format!(
-            "https://financialmodelingprep.com/api/v3/historical-chart/5min/{}",
-            symbol
-        );
-        let response = reqwest::blocking::Client::new()
-            .get(&url)
-            .query(&[
-                ("apikey", API_KEY),
-                ("from", &current_date_str),
-                ("to", &current_date_str),
-            ])
-            .send()?
-            .json::<Vec<HistoricalPrice>>()?;
-        Ok(response)
-    
+    // Fetch intraday data for the current date
+    let url = format!(
+        "https://financialmodelingprep.com/api/v3/historical-chart/5min/{}",
+        symbol
+    );
+    let response = reqwest::blocking::Client::new()
+        .get(&url)
+        .query(&[
+            ("apikey", API_KEY),
+            ("from", &current_date_str),
+            ("to", &current_date_str),
+        ])
+        .send()?
+        .json::<Vec<HistoricalPrice>>()?;
+    Ok(response)
 }
 
 pub fn fetch_historical_data(
@@ -226,36 +226,38 @@ pub fn parse_news(html: Html) -> Vec<String> {
     paragraphs
 }
 
-pub fn get_most_recent_trading_day() -> NaiveDate {
-    let utc_now = Utc::now();
-
-    let offset = FixedOffset::west_opt(5*60*60).unwrap();
-    let now_with_offset = utc_now.with_timezone(&offset);
-
+fn get_most_recent_trading_day_from(date: DateTime<Utc>) -> NaiveDate {
+    let offset = FixedOffset::west_opt(5 * 60 * 60).unwrap();
+    // let offset = FixedOffset::west_opt(0).unwrap();
+    let now_with_offset = date.with_timezone(&offset);
     let today_week = now_with_offset.weekday();
 
     if today_week == Weekday::Sat || today_week == Weekday::Sun {
-        return get_last_friday()
+        return get_last_friday_from(date);
     } else {
-        let midnight = NaiveTime::from_hms_opt(0, 0, 0).unwrap();
-        let midnight_prev = NaiveTime::from_hms_opt(23, 59, 59).unwrap();
-        let open_time = NaiveTime::from_hms_opt(9, 30, 0).unwrap();
-        let close_time = NaiveTime::from_hms_opt(16, 30, 0).unwrap();
-        if now_with_offset.time() < midnight_prev {
-            return now_with_offset.date_naive()
-        } else if now_with_offset.time() > midnight && now_with_offset.time() < open_time {
-            return now_with_offset.date_naive().pred_opt().unwrap()
-        } else if now_with_offset.time() > close_time {
-            return now_with_offset.date_naive()
-        }else{
-            return now_with_offset.date_naive()
+        if today_week == Weekday::Mon {
+            let midnight = NaiveTime::from_hms_opt(0, 0, 0).unwrap();
+            let open_time = NaiveTime::from_hms_opt(9, 30, 0).unwrap();
+            if now_with_offset.time() < open_time && now_with_offset.time() >= midnight {
+                return get_last_friday_from(date);
+            } else {
+                return now_with_offset.date_naive();
+            }
+        } else {
+            let midnight = NaiveTime::from_hms_opt(0, 0, 0).unwrap();
+            let open_time = NaiveTime::from_hms_opt(9, 30, 0).unwrap();
+            if now_with_offset.time() < open_time && now_with_offset.time() >= midnight {
+                return now_with_offset.date_naive().pred_opt().unwrap();
+            } else {
+                return now_with_offset.date_naive();
+            }
         }
     }
 }
 
-fn get_last_friday() -> NaiveDate {
+fn get_last_friday_from(date: DateTime<Utc>) -> NaiveDate {
     // Get the current weekday
-    let today = Local::now();
+    let today = date.with_timezone(&FixedOffset::west_opt(5 * 60 * 60).unwrap());
 
     // Calculate how many days to subtract to get the last Friday
     let days_to_subtract = match today.weekday() {
