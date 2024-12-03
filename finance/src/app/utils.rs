@@ -1,15 +1,17 @@
-use super::model::{ChartDP, Company, NewsData, Quote, SearchQuote, StockData, Top, StockList, HistoricalPrice};
+use super::model::{
+    ChartDP, Company, HistoricalPrice, NewsData, Quote, SearchQuote, StockData, StockList, Top,
+};
 use chrono::{Datelike, Duration, NaiveDateTime, Utc};
+use chrono_tz::America::New_York; 
 use scraper::{Html, Selector};
 use std::env;
-const API_KEY: &str = "H7iSor1eE79j32YkLqY0czsSfJXhUcDr";
+const API_KEY: &str = "77iRkUzOmkrSxwfuO3Mb8t7gLd6dP9yg";
 // BKo3pwdgStNm3rfLEHuit71sK0mvJBCZ
 // uilFVDFWvPNNFgPHkN47tl1vGeusng0H
-// Bt08M78UNw8jLzvmLk1Bl6s07Gc2rSt6 
+// Bt08M78UNw8jLzvmLk1Bl6s07Gc2rSt6
 // 77iRkUzOmkrSxwfuO3Mb8t7gLd6dP9yg
 // H7iSor1eE79j32YkLqY0czsSfJXhUcDr
 // Qxk93ZPLycDgwKFc0NILS8yzwTsi8a0y
-
 
 // If the environment variable is set, use it. Otherwise, use the default API key.
 fn get_api_key() -> String {
@@ -153,7 +155,11 @@ pub fn get_top_gainers() -> Result<Vec<Top>, reqwest::Error> {
 }
 
 pub fn fetch_intraday_data(symbol: &str) -> Result<Vec<HistoricalPrice>, reqwest::Error> {
-    let mut current_date = Utc::now().naive_utc().date();
+    // Start with today's date in Eastern Time
+    let mut current_date = chrono::Utc::now()
+        .with_timezone(&New_York)
+        .naive_local()
+        .date();
 
     loop {
         let current_date_str = current_date.format("%Y-%m-%d").to_string();
@@ -187,7 +193,12 @@ pub fn fetch_intraday_data(symbol: &str) -> Result<Vec<HistoricalPrice>, reqwest
     }
 }
 
-pub fn fetch_historical_data(symbol: &str,from: &str,to: &str,) -> Result<StockData, reqwest::Error> {
+
+pub fn fetch_historical_data(
+    symbol: &str,
+    from: &str,
+    to: &str,
+) -> Result<StockData, reqwest::Error> {
     let api_key = get_api_key();
     let url = format!(
         "https://financialmodelingprep.com/api/v3/historical-price-full/{}",
@@ -195,11 +206,7 @@ pub fn fetch_historical_data(symbol: &str,from: &str,to: &str,) -> Result<StockD
     );
     let body = reqwest::blocking::Client::new()
         .get(&url)
-        .query(&[
-            ("from", from), 
-            ("to", to), 
-            ("apikey", &api_key)
-        ])
+        .query(&[("from", from), ("to", to), ("apikey", &api_key)])
         .send()?
         .json::<StockData>()?;
     Ok(body)
