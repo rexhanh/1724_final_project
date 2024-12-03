@@ -1,4 +1,6 @@
-use chrono::{Datelike, NaiveDate, Timelike};
+use std::collections::HashMap;
+
+use chrono::{Datelike, NaiveDate, Timelike, NaiveDateTime};
 use color_eyre::Result;
 use ratatui::{
     buffer::Buffer,
@@ -15,14 +17,15 @@ use ratatui::{
 };
 mod model;
 pub use model::{
-    App, InputMode, ChartMode, NewsList, Quote, Screen, SearchList, SelectedList, StockData, StockList
+    App, ChartMode, InputMode, NewsList, Quote, Screen, SearchList, SelectedList,
+    StockHistoricalData, StockList,
 };
 mod utils;
 use scraper::Html;
 pub use utils::{
-    fetch_historical_data, fetch_intraday_data, fetch_search_result, fetch_sma, fetch_stock, get_bounds, 
-    get_company, get_month_data_range, get_year_data_range, get_news, get_top_gainers, parse_chart_point, 
-    parse_news, read_saved_quotes_name, save_quotes_name,
+    fetch_historical_data, fetch_intraday_data, fetch_search_result, fetch_sma, fetch_stock,
+    get_bounds, get_company, get_month_data_range, get_news, get_top_gainers, get_year_data_range,
+    parse_chart_point, parse_news, read_saved_quotes_name, save_quotes_name, 
 };
 impl StockList {
     fn new() -> Self {
@@ -77,11 +80,25 @@ impl Default for App {
 impl App {
     fn new() -> Self {
         let mut stock_list = StockList::new();
+        let mut stock_data_list: HashMap<String, StockHistoricalData> = HashMap::new();
         // Read saved quotes from file and add them to the stock list
         match read_saved_quotes_name() {
             Ok(names) => {
                 for name in names {
                     let stock = fetch_stock(&name);
+                    let (from, to) = get_month_data_range();
+                    let monthly_data = fetch_historical_data(&name, &from, &to).expect("Error");
+                    let intra_day_data = fetch_intraday_data(&name).expect("Error");
+                    let (from, to) = get_year_data_range();
+                    let yearly_data = fetch_historical_data(&name, &from, &to).expect("Error");
+                    stock_data_list.insert(
+                        name.clone(),
+                        StockHistoricalData {
+                            monthly: monthly_data.historical,
+                            daily: intra_day_data,
+                            yearly: yearly_data.historical,
+                        },
+                    );
                     match stock {
                         Ok(stock) => {
                             stock_list.add_stock(stock);
@@ -118,6 +135,7 @@ impl App {
             news_list,
             selected_list: SelectedList::Stock,
             chart_mode: ChartMode::Intraday, // Default mode set to Intraday
+            stock_data_list,
         }
     }
 
@@ -345,6 +363,21 @@ impl App {
         if let Some(i) = self.search_list.state.selected() {
             let stock_symbol = self.search_list.stocks[i].clone().symbol;
             let stock = fetch_stock(&stock_symbol);
+            // Fetch Historical data for the stock
+            let (from, to) = get_month_data_range();
+            let monthly_data = fetch_historical_data(&stock_symbol, &from, &to).expect("Error");
+            let intra_day_data = fetch_intraday_data(&stock_symbol).expect("Error");
+            let (from, to) = get_year_data_range();
+            let yearly_data = fetch_historical_data(&stock_symbol, &from, &to).expect("Error");
+            self.stock_data_list.insert(
+                stock_symbol,
+                StockHistoricalData {
+                    monthly: monthly_data.historical,
+                    daily: intra_day_data,
+                    yearly: yearly_data.historical,
+                },
+            );
+
             match stock {
                 Ok(stock) => {
                     self.stock_list.add_stock(stock);
@@ -563,68 +596,71 @@ impl App {
             // Fetch data based on the chart mode
             let (chart_data, title, x_axis_labels, x_min, x_max) = match self.chart_mode {
                 ChartMode::Intraday => {
-                    // Fetch the most recent intraday data (starting with 2024-11-22 for testing)
+                    // Fetch intraday data using the updated function
                     let intraday_data = fetch_intraday_data(symbol).unwrap_or_else(|_| vec![]);
-
+                
                     // Get the date of the intraday data
                     let chart_date = &intraday_data.first().unwrap().date[..10]; // Extract YYYY-MM-DD
-
+                
                     // Prepare data points
                     let mut dps: Vec<(f64, f64)> = Vec::new();
-
+                
                     // Define trading hours (static x-axis labels)
                     let trading_hours = vec![
                         "09:30", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00",
                     ];
-
-                    // Map trading hours to x-axis indices
-                    let total_minutes = 390.0; // Total trading minutes: 9:30 AM to 4:00 PM
-
+                
+                    // Total trading minutes: 390 (from 09:30 to 16:00)
+                    let total_minutes = 390;
+                
                     for entry in intraday_data.iter() {
-                        if let Ok(datetime) = chrono::NaiveDateTime::parse_from_str(&entry.date, "%Y-%m-%d %H:%M:%S") {
+                        if let Ok(datetime) =
+                            NaiveDateTime::parse_from_str(&entry.date, "%Y-%m-%d %H:%M:%S")
+                        {
                             // Calculate minutes since market open (9:30 AM = 570 minutes since midnight)
                             let minutes_since_open = datetime.hour() * 60 + datetime.minute() - 570;
-
-                            if i64::from(minutes_since_open) <= total_minutes as i64 {
-                                // Calculate normalized x value (position on the x-axis)
-                                let x_index = (minutes_since_open as f64 / total_minutes) * (trading_hours.len() - 1) as f64;
+                
+                            if minutes_since_open <= total_minutes {
+                                // Scale minutes_since_open to the range of x-axis labels
+                                let x_index = (minutes_since_open as f64 / total_minutes as f64) * 7.0; // Scale to 7 intervals
                                 dps.push((x_index, entry.close));
                             }
                         }
                     }
-
-                    // Generate x-axis labels
+                
+                    // Generate static x-axis labels
                     let x_labels: Vec<Line> = trading_hours
                         .iter()
                         .map(|&label| Line::from(Span::raw(label)))
                         .collect();
-
-                    // Calculate x-axis bounds
+                
+                    // Set x-axis bounds based on the number of labels
                     let x_min = 0.0;
-                    let x_max = (trading_hours.len() - 1) as f64;
-
-                    (dps, format!("Intraday Data for {}", chart_date),x_labels, x_min, x_max,)
+                    let x_max = 7.0;
+                
+                    (
+                        dps,
+                        format!("Intraday Data for {}", chart_date),
+                        x_labels,
+                        x_min,
+                        x_max,
+                    )
                 }
 
+                    
                 ChartMode::Month => {
                     // Fetch 30-day historical data
-                    let (from, to) = get_month_data_range();
-                    let month_data = fetch_historical_data(symbol, &from, &to)
-                        .unwrap_or_else(|_| StockData {
-                            symbol: symbol.to_string(),
-                            historical: vec![],
-                        });
-    
+                    let month_data = self.stock_data_list.get(symbol).unwrap();
                     // Prepare 30-day data points and labels
                     let mut dps: Vec<(f64, f64)> = Vec::new();
                     let mut monday_labels: Vec<Line> = Vec::new();
-    
-                    for (index, entry) in month_data.historical.iter().rev().enumerate() {
+
+                    for (index, entry) in month_data.monthly.iter().rev().enumerate() {
                         // Parse the date string to NaiveDate
                         if let Ok(date) = NaiveDate::parse_from_str(&entry.date, "%Y-%m-%d") {
                             // Add the close price to data points in reverse order
                             dps.push((index as f64, entry.close));
-    
+
                             // Check if the date is a Monday
                             if date.weekday() == chrono::Weekday::Mon {
                                 // Format the date as "MMM DD" and add to labels
@@ -633,28 +669,29 @@ impl App {
                             }
                         }
                     }
-    
+
                     // Calculate y-axis bounds
                     let x_min = 0.0;
                     let x_max = dps.len() as f64 - 1.0;
-    
-                    (dps, "1-Month Price History".to_string(), monday_labels, x_min, x_max)
+
+                    (
+                        dps,
+                        "1-Month Price History".to_string(),
+                        monday_labels,
+                        x_min,
+                        x_max,
+                    )
                 }
 
                 ChartMode::Year => {
                     // Fetch year data
-                    let (from, to) = get_year_data_range();
-                    let year_data = fetch_historical_data(symbol, &from, &to)
-                        .unwrap_or_else(|_| StockData {
-                            symbol: symbol.to_string(),
-                            historical: vec![],
-                        });
-                    
+                    let year_data = self.stock_data_list.get(symbol).unwrap();
+
                     // Prepare data points and labels
                     let mut dps: Vec<(f64, f64)> = Vec::new();
                     let mut x_labels: Vec<Line> = Vec::new();
 
-                    for (index, entry) in year_data.historical.iter().rev().enumerate() {
+                    for (index, entry) in year_data.yearly.iter().rev().enumerate() {
                         if let Ok(date) = NaiveDate::parse_from_str(&entry.date, "%Y-%m-%d") {
                             // Add the close price to data points in reverse order
                             dps.push((index as f64, entry.close));
@@ -671,23 +708,37 @@ impl App {
                     let x_min = 0.0;
                     let x_max = dps.len() as f64 - 1.0;
 
-                    (dps, "1-Year Price History".to_string(), x_labels, x_min, x_max)
+                    (
+                        dps,
+                        "1-Year Price History".to_string(),
+                        x_labels,
+                        x_min,
+                        x_max,
+                    )
                 }
             };
 
             // Calculate y-axis bounds
-            let y_min = chart_data.iter().map(|(_, y)| *y).fold(f64::INFINITY, f64::min);
-            let y_max = chart_data.iter().map(|(_, y)| *y).fold(f64::NEG_INFINITY, f64::max);
+            let y_min = chart_data
+                .iter()
+                .map(|(_, y)| *y)
+                .fold(f64::INFINITY, f64::min);
+            let y_max = chart_data
+                .iter()
+                .map(|(_, y)| *y)
+                .fold(f64::NEG_INFINITY, f64::max);
 
             // Define the chart
-            let chart = Chart::new(vec![
-                Dataset::default()
-                    .marker(symbols::Marker::Braille)
-                    .style(Style::default().fg(Color::Yellow))
-                    .graph_type(GraphType::Line)
-                    .data(&chart_data),
-            ])
-            .block(Block::default().title(Line::raw(title).centered()).borders(Borders::ALL))
+            let chart = Chart::new(vec![Dataset::default()
+                .marker(symbols::Marker::Braille)
+                .style(Style::default().fg(Color::Yellow))
+                .graph_type(GraphType::Line)
+                .data(&chart_data)])
+            .block(
+                Block::default()
+                    .title(Line::raw(title).centered())
+                    .borders(Borders::ALL),
+            )
             .x_axis(
                 Axis::default()
                     .title("Time")
@@ -708,13 +759,12 @@ impl App {
             );
 
             frame.render_widget(chart, area);
-    
         } else {
             let block = Block::default()
                 .title(Line::raw("Chart").centered())
                 .borders(Borders::ALL)
                 .border_set(symbols::border::THICK);
-    
+
             let paragraph = Paragraph::new("Nothing selected...").block(block);
             frame.render_widget(paragraph, area);
         }
