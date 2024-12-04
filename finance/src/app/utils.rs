@@ -1,8 +1,7 @@
 use super::model::{
     ChartDP, Company, HistoricalPrice, NewsData, Quote, SearchQuote, StockData, StockList, Top,
 };
-use chrono::{Datelike, Duration, NaiveDateTime, Utc};
-use chrono_tz::America::New_York; 
+use chrono::{Datelike, Duration, NaiveDateTime, Utc,Timelike};
 use scraper::{Html, Selector};
 use std::env;
 const API_KEY: &str = "77iRkUzOmkrSxwfuO3Mb8t7gLd6dP9yg";
@@ -155,16 +154,26 @@ pub fn get_top_gainers() -> Result<Vec<Top>, reqwest::Error> {
 }
 
 pub fn fetch_intraday_data(symbol: &str) -> Result<Vec<HistoricalPrice>, reqwest::Error> {
-    // Start with today's date in Eastern Time
-    let mut current_date = chrono::Utc::now()
-        .with_timezone(&New_York)
-        .naive_local()
-        .date();
+    // Get current time in Eastern Time
+    let now_est = chrono::Utc::now().with_timezone(&chrono_tz::America::New_York);
+
+    // Get current hour and minute in EST
+    let current_hour = now_est.hour();
+    let current_minute = now_est.minute();
+
+    // Determine the date to use
+    let mut current_date = if current_hour < 9 || (current_hour == 9 && current_minute < 30) {
+        // If before 09:30 AM, use the previous day's date
+        now_est.naive_local().date() - Duration::days(1)
+    } else {
+        // Otherwise, use today's date
+        now_est.naive_local().date()
+    };
 
     loop {
         let current_date_str = current_date.format("%Y-%m-%d").to_string();
 
-        // Fetch intraday data for the current date
+        // Fetch intraday data for the determined date
         let url = format!(
             "https://financialmodelingprep.com/api/v3/historical-chart/5min/{}",
             symbol
