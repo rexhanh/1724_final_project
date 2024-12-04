@@ -445,7 +445,7 @@ impl App {
         let block = Block::new()
             .title(Line::raw("Search").centered())
             .borders(Borders::ALL)
-            .border_set(symbols::border::THICK);
+            .border_set(symbols::border::PLAIN);
 
         Paragraph::new(self.input.clone())
             .block(block)
@@ -509,7 +509,7 @@ impl App {
         let block = Block::new()
             .title(Line::raw(news.title).centered())
             .borders(Borders::ALL)
-            .border_set(symbols::border::THICK);
+            .border_set(symbols::border::PLAIN);
         let t = self.news_list.state.selected();
         match t {
             Some(i) => {
@@ -548,7 +548,7 @@ impl App {
         let block = Block::new()
             .title(Line::raw("Stocks").left_aligned().bold())
             .borders(Borders::ALL)
-            .border_set(symbols::border::THICK);
+            .border_set(symbols::border::PLAIN);
 
         let items: Vec<ListItem> = self
             .stock_list
@@ -579,7 +579,7 @@ impl App {
         let block = Block::new()
             .title(Line::raw("Stock Info").centered())
             .borders(Borders::ALL)
-            .border_set(symbols::border::THICK)
+            .border_set(symbols::border::PLAIN)
             .padding(Padding::horizontal(1));
 
         // We can now render the item info
@@ -761,7 +761,7 @@ impl App {
             let block = Block::default()
                 .title(Line::raw("Chart").centered())
                 .borders(Borders::ALL)
-                .border_set(symbols::border::THICK);
+                .border_set(symbols::border::PLAIN);
 
             let paragraph = Paragraph::new("Nothing selected...").block(block);
             frame.render_widget(paragraph, area);
@@ -790,7 +790,7 @@ impl App {
         let block = Block::new()
             .title(Line::raw("General News").centered())
             .borders(Borders::ALL)
-            .border_set(symbols::border::THICK);
+            .border_set(symbols::border::PLAIN);
 
         // Define the news content
         let items: Vec<ListItem> = self
@@ -825,7 +825,7 @@ impl App {
         let block = Block::new()
             .title(Line::raw("Result").centered())
             .borders(Borders::ALL)
-            .border_set(symbols::border::THICK);
+            .border_set(symbols::border::PLAIN);
 
         let items: Vec<ListItem> = self
             .search_list
