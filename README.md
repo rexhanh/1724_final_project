@@ -36,7 +36,7 @@ cargo run
 
 ## Video Demo
 
-to be added...
+[![DEMO](https://img.youtube.com/vi/g3cMjUPhcEE/0.jpg)](https://www.youtube.com/watch?v=g3cMjUPhcEE)
 
 ## Members
 
