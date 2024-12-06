@@ -156,9 +156,30 @@ pub fn get_top_gainers() -> Result<Vec<Top>, reqwest::Error> {
 }
 
 pub fn fetch_intraday_data(symbol: &str) -> Result<Vec<HistoricalPrice>, reqwest::Error> {
-    let current_date = get_most_recent_trading_day_from(Utc::now());
-    let current_date_str = current_date.format("%Y-%m-%d").to_string();
+    let mut current_date = get_most_recent_trading_day_from(Utc::now());
 
+    // Check if the current date has intraday data, else loop back to the previous day until we find a date with intraday data
+    loop {
+        let current_date_str = current_date.format("%Y-%m-%d").to_string();
+        let url = format!(
+            "https://financialmodelingprep.com/api/v3/historical-chart/5min/{}",
+            symbol
+        );
+        let response = reqwest::blocking::Client::new()
+            .get(&url)
+            .query(&[
+                ("apikey", API_KEY),
+                ("from", &current_date_str),
+                ("to", &current_date_str),
+            ])
+            .send()?
+            .json::<Vec<HistoricalPrice>>()?;
+        if !response.is_empty() {
+            break;
+        }
+        current_date = current_date.pred_opt().unwrap();
+    }
+    let current_date_str = current_date.format("%Y-%m-%d").to_string();
     // Fetch intraday data for the current date
     let url = format!(
         "https://financialmodelingprep.com/api/v3/historical-chart/5min/{}",
