@@ -492,7 +492,6 @@ impl App {
             self.render_sma_chart(chart_area, frame); // Includes crossover analysis
             self.render_top_gainers(gainers_area, frame);
 
-            // TODO Might need a new render for this screen
             App::render_footer(footer_area, frame.buffer_mut(), Screen::Analytics);
         }
     }
@@ -561,8 +560,7 @@ impl App {
 
         StatefulWidget::render(list, area, buf, &mut self.stock_list.state);
     }
-    // TODO Need to implement the rendering of the selected item
-    // Currently, it just shows the name and price of the selected item
+
     fn render_selected_item(&self, area: Rect, buf: &mut Buffer) {
         // We get the info depending on the item's state.
         let info = if let Some(i) = self.stock_list.state.selected() {
@@ -840,7 +838,7 @@ impl App {
     fn render_company_info(&self, area: Rect, frame: &mut Frame) {
         // Assuming `get_company` returns a Result with `Company` instance
         // let company = get_company(&selected_quote.symbol).unwrap();
-        let company = self.company.as_ref().unwrap(); // TODO get selected stock
+        let company = self.company.as_ref().unwrap();
 
         // Display company fields, 1 field per line
         let company_info = format!(
