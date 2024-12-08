@@ -45,15 +45,13 @@ User will be able to search for a stock and add it to the main screen by the com
 
 ### Main Screen
 
-Start the app by `cargo run`, you will be directed to the main screen.
+Start the app by `cargo run`; you will be directed to the main screen.
 
-Initial main screen will be mostly empty because no stocks are added. User can hit `s` to enter search screen.
+The initial main screen will be mostly empty because no stocks have been added. User can hit `s` to enter search screen and add a stock.
 
-If there is a stock in the list, you can use `up` and `down` arrow keys to select different stocks (if more than one stock added).
+If a stock is in the list, you can use the `up` and `down` arrow keys to select different stocks (if more than one stock has been added).
 
-Once a stock is selected, you can hit `enter` to enter the anylytics screen.
-
-Use `d`, `m`, `y` keys to switch between intraday, monthly and yearly chart if a stock is selected.
+If a stock is selected, you can hit `enter` to enter the analytics screen. Use `d`, `m`, `y` keys to switch between intraday, monthly and yearly chart.
 
 Use `left` and `right` arrow key to switch between the stock list and general news list.
 
@@ -65,15 +63,15 @@ You can hit `Esc` to quit the app.
 
 Once in search screen, you can hit `i` to insert text to search for a stock. After finishing the inputs, hit `enter` to search for stocks, and most similar stocks will appear on the screen as a list. User can use `up` and `down` arrow keys to select which stock to add, and hit `enter` to add it to the main screen.
 
-You can hit `h` to go back to main screen, or `Esc` to quit the app.
+You can hit `h` to return to main screen, or `Esc` to quit the app.
 
 ### Analytics Screen
 
-You can hit `h` to go back to main screen, or `Esc` to quit the app.
+You can hit `h` to return to main screen, or `Esc` to quit the app.
 
 ### General News Screen
 
-You can hit `h` to go back to main screen, or `Esc` to quit the app.
+You can hit `h` to return to main screen, or `Esc` to quit the app.
 
 **At the bottom of each screen, there will be an instruction at the bottom.**
 
