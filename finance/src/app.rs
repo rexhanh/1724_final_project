@@ -723,7 +723,6 @@ impl App {
                 .iter()
                 .map(|(_, y)| *y)
                 .fold(f64::NEG_INFINITY, f64::max);
-
             // Define the chart
             let chart = Chart::new(vec![Dataset::default()
                 .marker(symbols::Marker::Braille)
@@ -757,7 +756,7 @@ impl App {
             frame.render_widget(chart, area);
         } else {
             let block = Block::default()
-                .title(Line::raw("Chart").centered())
+                .title(Line::raw("Chart (d to view daily chart, m to view monthly chart, y to view yearly chart, )").centered())
                 .borders(Borders::ALL)
                 .border_set(symbols::border::PLAIN);
 
@@ -770,8 +769,7 @@ impl App {
         match screen {
             Screen::Stock => {
                 Paragraph::new(
-                    "↓↑ to move, ← → to switch between stock and news, s to search, d to view daily chart, m to view monthly chart, 
-                    y to view yearly chart, Enter to analytics or news, Esc to quit            ",
+                    "↓↑ to move, ← → to switch between stock and news, s to search, Enter to analytics or news, Esc to quit            ",
                 )
                 .centered()
                 .render(area, buf);
@@ -808,7 +806,7 @@ impl App {
     }
 
     fn render_normal_footer(&self, area: Rect, buf: &mut Buffer) {
-        Paragraph::new("Use q to quit, use s return to stock screen, use i to insert")
+        Paragraph::new("Use Esc to quit, use s return to stock screen, use i to insert to search box")
             .centered()
             .render(area, buf);
     }
