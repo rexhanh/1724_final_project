@@ -7,11 +7,11 @@ use chrono::{
 use scraper::{Html, Selector};
 use std::env;
 
-const API_KEY: &str = "77iRkUzOmkrSxwfuO3Mb8t7gLd6dP9yg";
+const API_KEY: &str = "Qxk93ZPLycDgwKFc0NILS8yzwTsi8a0y";
 // BKo3pwdgStNm3rfLEHuit71sK0mvJBCZ used
 // uilFVDFWvPNNFgPHkN47tl1vGeusng0H used
 // Bt08M78UNw8jLzvmLk1Bl6s07Gc2rSt6 used
-// 77iRkUzOmkrSxwfuO3Mb8t7gLd6dP9yg
+// 77iRkUzOmkrSxwfuO3Mb8t7gLd6dP9yg used
 // H7iSor1eE79j32YkLqY0czsSfJXhUcDr used
 // Qxk93ZPLycDgwKFc0NILS8yzwTsi8a0y
 
