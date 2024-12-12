@@ -15,12 +15,12 @@ use ratatui::{
     },
     DefaultTerminal, Frame,
 };
-mod model;
+pub mod model;
 pub use model::{
     App, ChartMode, InputMode, NewsList, Quote, Screen, SearchList, SelectedList,
     StockHistoricalData, StockList,
 };
-mod utils;
+pub mod utils;
 use scraper::Html;
 pub use utils::{
     fetch_historical_data, fetch_intraday_data, fetch_search_result, fetch_sma, fetch_stock,
@@ -276,6 +276,37 @@ impl App {
             }
             KeyCode::Down => self.scroll_down(), // Scroll down on Down arrow key
             KeyCode::Up => self.scroll_up(),     // Scroll up on Up arrow key
+            KeyCode::Char('o') => {
+                if let Some(i) = self.stock_list.state.selected(){
+                    let selected_stock = &self.stock_list.stocks[i];
+                    let symbol = &selected_stock.symbol;
+                    let period1 = "5";
+                    let period2 = "30";
+                    let url = format!(
+                        "http://localhost:8000/analytics?symbol={}&period1={}&period2={}",
+                        symbol, period1, period2
+                    );
+                    // Open the URL in the default browser
+                    if cfg!(target_os = "windows") {
+                        std::process::Command::new("cmd")
+                            .args(&["/C", &format!("start {}", url)])
+                            .spawn()
+                            .expect("Failed to open web page");
+                    } else if cfg!(target_os = "macos") {
+                        std::process::Command::new("open")
+                            .arg(&url)
+                            .spawn()
+                            .expect("Failed to open web page");
+                    } else if cfg!(target_os = "linux") {
+                        std::process::Command::new("xdg-open")
+                            .arg(&url)
+                            .spawn()
+                            .expect("Failed to open web page");
+                    }
+                } else {
+                    self.status_message = String::from("No company selected for analytics.");
+                }
+            }
             _ => {}
         }
     }
@@ -806,9 +837,11 @@ impl App {
     }
 
     fn render_normal_footer(&self, area: Rect, buf: &mut Buffer) {
-        Paragraph::new("Use Esc to quit, use s return to stock screen, use i to insert to search box")
-            .centered()
-            .render(area, buf);
+        Paragraph::new(
+            "Use Esc to quit, use s return to stock screen, use i to insert to search box",
+        )
+        .centered()
+        .render(area, buf);
     }
 
     fn render_editing_footer(&self, area: Rect, buf: &mut Buffer) {
@@ -932,7 +965,8 @@ impl App {
 
         // Calculate scrollbar height and position
         let total_items = self.top_list.len();
-        let scrollbar_height = max_visible_items.min(area.height as usize - 3);
+        //let scrollbar_height = max_visible_items.min(area.height as usize - 3);
+        let scrollbar_height = max_visible_items.min(area.height.saturating_sub(3) as usize);
         let scrollbar_position = if total_items > max_visible_items {
             (self.scroll_offset * (scrollbar_height - 1)) / (total_items - max_visible_items)
         } else {

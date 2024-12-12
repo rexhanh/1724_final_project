@@ -144,3 +144,9 @@ pub struct StockHistoricalData {
     pub monthly: Vec<HistoricalPrice>,
     pub yearly: Vec<HistoricalPrice>,
 }
+
+// for analytics plot find intersection
+pub struct Point {
+    pub x: f64,
+    pub y: f64,
+}
