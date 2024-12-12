@@ -931,7 +931,7 @@ impl App {
                 .graph_type(GraphType::Line)
                 .data(&dps2),
         ])
-        .block(Block::bordered().title("Simple Moving Average (SMA) Graph 2024: (X-axis: MMDD)"))
+        .block(Block::bordered().title("Simple Moving Average (SMA) Graph 2024: (X-axis: MMDD), enter o for web plot"))
         .x_axis(
             Axis::default()
                 .title("X Axis: Time")

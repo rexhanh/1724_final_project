@@ -4,7 +4,7 @@ use plotters::prelude::*;
 use plotters::style::{RED, WHITE};
 use rocket::fs::NamedFile;
 use rocket::http::Status;
-use rocket::{get,routes};
+use rocket::{get, routes};
 use std::path::Path;
 
 // new
@@ -106,7 +106,8 @@ fn generate_chart(
         .border_style(&BLACK)
         .position(SeriesLabelPosition::UpperRight)
         .draw()?;
-    
+
+    // Add text boxes for Golden and Death Crosses
     let golden_text: Vec<String> = golden
         .iter()
         .map(|(date, y)| {
@@ -115,7 +116,6 @@ fn generate_chart(
             format!("{}: {:.2}", date_without_year, y)
         })
         .collect();
-
     let death_text: Vec<String> = death
         .iter()
         .map(|(date, y)| {
@@ -124,23 +124,37 @@ fn generate_chart(
             format!("{}: {:.2}", date_without_year, y)
         })
         .collect();
+    // Fixed positions for the text lists
+    // Adjust the offsets for slight right and downward shift
+    let char_width = 8; // Approximate width of a character
+    let line_height = 20; // Approximate height of a line
 
-    let text_x_golden = dates.len() as i32 + 10; // X-coordinate for the Golden Cross text box
-    let text_x_death = dates.len() as i32 + 150; // X-coordinate for the Death Cross text box
-    let text_y_start = max_value; // Starting Y-coordinate for the text box
+    let title_position_x = 10; // Assume title starts at X = 10
+    let title_position_y = 20; // Assume title ends at Y = 20
 
+    // Apply additional shifts
+    let additional_shift_x = 20; // Move right by 20 pixels
+    let additional_shift_y = 10; // Move down by 10 pixels
+
+    // New positions for the text lists
+    let text_x_golden = title_position_x + 4 * char_width + additional_shift_x; // Slightly shifted right
+    let text_x_death = text_x_golden + 200; // Maintain separation for Death Cross text
+    let text_y_start = title_position_y + 2 * line_height + additional_shift_y; // Slightly shifted down
+
+    // Draw Golden Cross text
     for (i, text) in golden_text.iter().enumerate() {
         root.draw(&Text::new(
             text.as_str(), // Dereference the &String to get a &str
-            (text_x_golden, text_y_start as i32 - 10 - (i as i32 * 20)), // Adjust position as needed
+            (text_x_golden, text_y_start as i32 + (i as i32 * 20)), // Adjust position incrementally down
             ("sans-serif", 12).into_font(),
         ))?;
     }
 
+    // Draw Death Cross text
     for (i, text) in death_text.iter().enumerate() {
         root.draw(&Text::new(
-            text.as_str(), // Dereference the &String to get a &str
-            (text_x_death, text_y_start as i32 - 10 - (i as i32 * 20)), // Adjust position as needed
+            text.as_str(),
+            (text_x_death, text_y_start as i32 + (i as i32 * 20)), // Adjust position incrementally down
             ("sans-serif", 12).into_font(),
         ))?;
     }
