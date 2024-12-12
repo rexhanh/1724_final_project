@@ -800,10 +800,16 @@ impl App {
         match screen {
             Screen::Stock => {
                 Paragraph::new(
-                    "↓↑ to move, ← → to switch between stock and news, s to search, Enter to analytics or news, Esc to quit            ",
+                    "↓↑ to move, ← → to switch between stock and news, s to search, d to view daily chart, m to view monthly chart, 
+                    y to view yearly chart, Enter to analytics or news, Esc to quit            ",
                 )
                 .centered()
                 .render(area, buf);
+            }
+            Screen::Analytics => {
+                Paragraph::new("h to return to home, o to view detailed plot in browser, ↓↑ to scroll gainer list, Esc to quit")
+                    .centered()
+                    .render(area, buf);
             }
             _ => {
                 Paragraph::new("h to return to home, Esc to quit")
@@ -931,7 +937,8 @@ impl App {
                 .graph_type(GraphType::Line)
                 .data(&dps2),
         ])
-        .block(Block::bordered().title("Simple Moving Average (SMA) Graph 2024: (X-axis: MMDD), enter o for web plot"))
+        .block(Block::bordered()
+        .title("Long/short Simple Moving Average 2024: (MMDD,price)"))
         .x_axis(
             Axis::default()
                 .title("X Axis: Time")
@@ -995,7 +1002,7 @@ impl App {
 
         // Render the top gainers block
         let block = Block::new()
-            .title(Line::raw("Top Gainers (Use ↑↓ to scroll)").centered())
+            .title(Line::raw("Top Gainers").centered())
             .borders(Borders::ALL);
 
         // Render the paragraph with gainers information
