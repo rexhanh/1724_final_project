@@ -919,13 +919,13 @@ impl App {
         // Define the chart with datasets
         let chart = Chart::new(vec![
             Dataset::default()
-                .name("10-day SMA")
+                .name("5-day SMA")
                 .marker(symbols::Marker::Braille)
                 .style(Style::default().fg(Color::Cyan))
                 .graph_type(GraphType::Line)
                 .data(&dps),
             Dataset::default()
-                .name("20-day SMA")
+                .name("30-day SMA")
                 .marker(symbols::Marker::Braille)
                 .style(Style::default().fg(Color::Yellow))
                 .graph_type(GraphType::Line)

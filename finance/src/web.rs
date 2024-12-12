@@ -38,7 +38,7 @@ fn generate_chart(
 
     let mut chart = ChartBuilder::on(&root)
         .caption(
-            format!("Analytics for {}", symbol),
+            format!("Long/short Simple Moving Average for {}", symbol),
             ("sans-serif", 20).into_font(),
         )
         .margin(10)
@@ -68,17 +68,17 @@ fn generate_chart(
             sma1.iter().enumerate().map(|(i, (_, value))| (i, *value)),
             &BLUE,
         ))?
-        .label("SMA1")
+        .label("5-day SMA")
         .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLUE));
 
     // Draw SMA2
     chart
         .draw_series(LineSeries::new(
             sma2.iter().enumerate().map(|(i, (_, value))| (i, *value)),
-            &RED,
+            &YELLOW,
         ))?
-        .label("SMA2")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
+        .label("30-day SMA")
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &YELLOW));
 
     // Detect intersections
     let (golden, death) = detect_intersections(&sma1, &sma2);
@@ -96,10 +96,10 @@ fn generate_chart(
     chart
         .draw_series(death.iter().map(|(date, y)| {
             let index = dates.iter().position(|d| d == date).unwrap(); // Find the index of the date
-            Circle::new((index, *y), 2, ShapeStyle::from(&YELLOW).filled())
+            Circle::new((index, *y), 2, ShapeStyle::from(&RED).filled())
         }))?
         .label("Death Cross")
-        .legend(|(x, y)| Circle::new((x + 10, y), 5, ShapeStyle::from(&YELLOW).filled()));
+        .legend(|(x, y)| Circle::new((x + 10, y), 5, ShapeStyle::from(&RED).filled()));
 
     chart
         .configure_series_labels()
