@@ -310,49 +310,6 @@ impl App {
                 }
             }
 
-            // json
-            // KeyCode::Char('o') => {
-            //     if let Some(i) = self.stock_list.state.selected() {
-            //         let selected_stock = &self.stock_list.stocks[i];
-            //         let symbol = &selected_stock.symbol;
-            //         let period1 = "5";
-            //         let period2 = "30";
-
-            //         // Construct the JSON payload
-            //         let payload = json!({
-            //             "symbol": symbol,
-            //             "period1": period1,
-            //             "period2": period2
-            //         });
-
-            //         // Use the reqwest client to send a POST request
-            //         let client = Client::new();
-            //         let response = client
-            //             .post("http://localhost:8000/analytics")
-            //             .json(&payload)
-            //             .send();
-
-            //         match response {
-            //             Ok(resp) => {
-            //                 if resp.status().is_success() {
-            //                     self.status_message =
-            //                         format!("Analytics request for {} sent successfully.", symbol);
-            //                 } else {
-            //                     self.status_message = format!(
-            //                         "Failed to send analytics request: {}",
-            //                         resp.text().unwrap_or_else(|_| "Unknown error".to_string())
-            //                     );
-            //                 }
-            //             }
-            //             Err(err) => {
-            //                 self.status_message = format!("Error sending request: {}", err);
-            //             }
-            //         }
-            //     } else {
-            //         self.status_message = String::from("No company selected for analytics.");
-            //     }
-            // }
-            
             _ => {}
         }
     }
