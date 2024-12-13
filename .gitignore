@@ -1,3 +1,5 @@
 /finance/target
 /finance/src/saved.json
 /finance/saved.json
+/finance/tmp/*
+/finance/errors.log

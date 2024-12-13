@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use chrono::{Datelike, NaiveDate, Timelike};
 use color_eyre::Result;
 use ratatui::{
@@ -15,6 +13,8 @@ use ratatui::{
     },
     DefaultTerminal, Frame,
 };
+use std::collections::HashMap;
+use urlencoding::encode;
 pub mod model;
 pub use model::{
     App, ChartMode, InputMode, NewsList, Quote, Screen, SearchList, SelectedList,
@@ -284,12 +284,12 @@ impl App {
                     let period2 = "30";
                     let url = format!(
                         "http://localhost:8000/analytics?symbol={}&period1={}&period2={}",
-                        symbol, period1, period2
+                        encode(symbol), encode(period1), encode(period2)
                     );
                     // Open the URL in the default browser
                     if cfg!(target_os = "windows") {
                         std::process::Command::new("cmd")
-                            .args(&["/C", &format!("start {}", url)])
+                            .args(&["/C", "start", &url])
                             .spawn()
                             .expect("Failed to open web page");
                     } else if cfg!(target_os = "macos") {
@@ -303,10 +303,56 @@ impl App {
                             .spawn()
                             .expect("Failed to open web page");
                     }
-                } else {
+                }
+
+                else {
                     self.status_message = String::from("No company selected for analytics.");
                 }
             }
+
+            // json
+            // KeyCode::Char('o') => {
+            //     if let Some(i) = self.stock_list.state.selected() {
+            //         let selected_stock = &self.stock_list.stocks[i];
+            //         let symbol = &selected_stock.symbol;
+            //         let period1 = "5";
+            //         let period2 = "30";
+
+            //         // Construct the JSON payload
+            //         let payload = json!({
+            //             "symbol": symbol,
+            //             "period1": period1,
+            //             "period2": period2
+            //         });
+
+            //         // Use the reqwest client to send a POST request
+            //         let client = Client::new();
+            //         let response = client
+            //             .post("http://localhost:8000/analytics")
+            //             .json(&payload)
+            //             .send();
+
+            //         match response {
+            //             Ok(resp) => {
+            //                 if resp.status().is_success() {
+            //                     self.status_message =
+            //                         format!("Analytics request for {} sent successfully.", symbol);
+            //                 } else {
+            //                     self.status_message = format!(
+            //                         "Failed to send analytics request: {}",
+            //                         resp.text().unwrap_or_else(|_| "Unknown error".to_string())
+            //                     );
+            //                 }
+            //             }
+            //             Err(err) => {
+            //                 self.status_message = format!("Error sending request: {}", err);
+            //             }
+            //         }
+            //     } else {
+            //         self.status_message = String::from("No company selected for analytics.");
+            //     }
+            // }
+            
             _ => {}
         }
     }
@@ -937,8 +983,7 @@ impl App {
                 .graph_type(GraphType::Line)
                 .data(&dps2),
         ])
-        .block(Block::bordered()
-        .title("Long/short Simple Moving Average 2024: (MMDD,price)"))
+        .block(Block::bordered().title("Long/short Simple Moving Average 2024: (MMDD,price)"))
         .x_axis(
             Axis::default()
                 .title("X Axis: Time")

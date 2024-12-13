@@ -6,14 +6,7 @@ use chrono::{
 };
 use scraper::{Html, Selector};
 use std::env;
-
-const API_KEY: &str = "Qxk93ZPLycDgwKFc0NILS8yzwTsi8a0y";
-// BKo3pwdgStNm3rfLEHuit71sK0mvJBCZ used
-// uilFVDFWvPNNFgPHkN47tl1vGeusng0H used
-// Bt08M78UNw8jLzvmLk1Bl6s07Gc2rSt6 used
-// 77iRkUzOmkrSxwfuO3Mb8t7gLd6dP9yg used
-// H7iSor1eE79j32YkLqY0czsSfJXhUcDr used
-// Qxk93ZPLycDgwKFc0NILS8yzwTsi8a0y
+const API_KEY: &str = "uilFVDFWvPNNFgPHkN47tl1vGeusng0H";
 
 // If the environment variable is set, use it. Otherwise, use the default API key.
 fn get_api_key() -> String {

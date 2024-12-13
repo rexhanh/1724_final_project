@@ -6,7 +6,7 @@ use rocket::fs::NamedFile;
 use rocket::http::Status;
 use rocket::{get, routes};
 use std::path::Path;
-
+use log::error;
 // new
 fn generate_chart(
     symbol: &str,
@@ -20,6 +20,12 @@ fn generate_chart(
 
     // Parse dates into indices for X-axis mapping
     let dates: Vec<_> = sma1.iter().map(|(date, _)| date.clone()).collect();
+
+    // Handle the case where no data is available
+    if dates.is_empty() {
+        return Err(format!("No data available for symbol: {}", symbol).into());
+    }
+
     let min_value = sma1
         .iter()
         .chain(sma2.iter())
@@ -166,28 +172,28 @@ fn generate_chart(
 async fn analytics(symbol: String, period1: String, period2: String) -> Result<NamedFile, Status> {
     // Fetch SMA data for the first period
     let sma1 = fetch_sma_async(&symbol, &period1).await.map_err(|err| {
-        eprintln!("Error fetching SMA1 data for symbol {}: {}", symbol, err);
+        error!("Error fetching SMA1 data for symbol {}: {}", symbol, err);
         Status::InternalServerError
     })?;
     let sma1 = filter(sma1);
 
     // Fetch SMA data for the second period
     let sma2 = fetch_sma_async(&symbol, &period2).await.map_err(|err| {
-        eprintln!("Error fetching SMA2 data for symbol {}: {}", symbol, err);
+        error!("Error fetching SMA2 data for symbol {}: {}", symbol, err);
         Status::InternalServerError
     })?;
     let sma2 = filter(sma2);
 
     // Generate chart and save to a temporary file
-    let file_name = format!("/tmp/{}_analytics_chart.png", symbol);
+    let file_name = format!("./tmp/{}_analytics_chart.png", symbol);
     if let Err(err) = generate_chart(&symbol, sma1, sma2, &file_name) {
-        eprintln!("Error generating chart for symbol {}: {}", symbol, err);
+        error!("Error generating chart for symbol {}: {}", symbol, err);
         return Err(Status::InternalServerError);
     }
 
     // Serve the file
     NamedFile::open(Path::new(&file_name)).await.map_err(|err| {
-        eprintln!("Error serving chart file {}: {}", file_name, err);
+        error!("Error serving chart file {}: {}", file_name, err);
         Status::InternalServerError
     })
 }
