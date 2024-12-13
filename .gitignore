@@ -1,3 +1,4 @@
 /finance/target
 /finance/src/saved.json
 /finance/saved.json
+.DS_Store
