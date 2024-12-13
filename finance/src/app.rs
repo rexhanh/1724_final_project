@@ -87,14 +87,9 @@ impl App {
             Ok(names) => {
                 for name in names {
                     let stock = fetch_stock(&name);
-                    // let (from, to) = get_month_data_range();
-                    // let monthly_data = fetch_historical_data(&name, &from, &to).expect("Error");
                     let full_data = fetch_full_historical_data(&name).expect("Error");
                     let latest_trading_date = full_data.historical.first().unwrap().date.clone();
                     let intra_day_data = fetch_intraday_data(&name, &latest_trading_date).expect("Error");
-                    // let (from, to) = get_year_data_range();
-                    // let yearly_data = fetch_historical_data(&name, &from, &to).expect("Error");
-                    
                     stock_data_list.insert(
                         name.clone(),
                         StockHistoricalData {
@@ -368,15 +363,9 @@ impl App {
         if let Some(i) = self.search_list.state.selected() {
             let stock_symbol = self.search_list.stocks[i].clone().symbol;
             let stock = fetch_stock(&stock_symbol);
-            // Fetch Historical data for the stock
-            // let (from, to) = get_month_data_range();
-            // let monthly_data = fetch_historical_data(&stock_symbol, &from, &to).expect("Error");
             let full_data = fetch_full_historical_data(&stock_symbol).expect("Error");
             let latest_trading_date = full_data.historical.first().unwrap().date.clone();
             let intra_day_data = fetch_intraday_data(&stock_symbol, &latest_trading_date).expect("Error");
-            // let (from, to) = get_year_data_range();
-            // let yearly_data = fetch_historical_data(&stock_symbol, &from, &to).expect("Error");
-            
             self.stock_data_list.insert(
                 stock_symbol,
                 StockHistoricalData {
