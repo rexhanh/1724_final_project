@@ -793,7 +793,7 @@ impl App {
             frame.render_widget(chart, area);
         } else {
             let block = Block::default()
-                .title(Line::raw("Chart (d to view daily chart, m to view monthly chart, y to view yearly chart, )").centered())
+                .title(Line::raw("Chart").centered())
                 .borders(Borders::ALL)
                 .border_set(symbols::border::PLAIN);
 
