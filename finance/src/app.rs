@@ -1,11 +1,10 @@
-use std::collections::HashMap;
-
-use chrono::{Datelike, NaiveDate, Timelike, NaiveDateTime};
+use chrono::{Datelike, NaiveDate, Timelike};
 use color_eyre::Result;
 use ratatui::{
     buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     layout::{Constraint, Layout, Position, Rect},
+    prelude::*,
     style::{Color, Style, Stylize},
     symbols::{self},
     text::{Line, Span},
@@ -15,17 +14,20 @@ use ratatui::{
     },
     DefaultTerminal, Frame,
 };
-mod model;
+use std::collections::HashMap;
+use urlencoding::encode;
+pub mod model;
 pub use model::{
     App, ChartMode, InputMode, NewsList, Quote, Screen, SearchList, SelectedList,
     StockHistoricalData, StockList,
 };
-mod utils;
+pub mod utils;
 use scraper::Html;
+use utils::fetch_full_historical_data;
 pub use utils::{
-    fetch_historical_data, fetch_intraday_data, fetch_search_result, fetch_sma, fetch_stock,
-    get_bounds, get_company, get_month_data_range, get_news, get_top_gainers, get_year_data_range,
-    parse_chart_point, parse_news, read_saved_quotes_name, save_quotes_name, 
+    fetch_intraday_data, fetch_search_result, fetch_sma, fetch_stock, get_bounds, get_company,
+    get_news, get_top_gainers, parse_chart_point, parse_news, read_saved_quotes_name,
+    save_quotes_name,
 };
 impl StockList {
     fn new() -> Self {
@@ -86,17 +88,17 @@ impl App {
             Ok(names) => {
                 for name in names {
                     let stock = fetch_stock(&name);
-                    let (from, to) = get_month_data_range();
-                    let monthly_data = fetch_historical_data(&name, &from, &to).expect("Error");
-                    let intra_day_data = fetch_intraday_data(&name).expect("Error");
-                    let (from, to) = get_year_data_range();
-                    let yearly_data = fetch_historical_data(&name, &from, &to).expect("Error");
+                    let full_data = fetch_full_historical_data(&name).expect("Error");
+                    let latest_trading_date = full_data.historical.first().unwrap().date.clone();
+                    let intra_day_data =
+                        fetch_intraday_data(&name, &latest_trading_date).expect("Error");
                     stock_data_list.insert(
                         name.clone(),
                         StockHistoricalData {
-                            monthly: monthly_data.historical,
+                            // monthly: monthly_data.historical,
                             daily: intra_day_data,
-                            yearly: yearly_data.historical,
+                            // yearly: yearly_data.historical,
+                            full: full_data.historical,
                         },
                     );
                     match stock {
@@ -276,6 +278,40 @@ impl App {
             }
             KeyCode::Down => self.scroll_down(), // Scroll down on Down arrow key
             KeyCode::Up => self.scroll_up(),     // Scroll up on Up arrow key
+            KeyCode::Char('o') => {
+                if let Some(i) = self.stock_list.state.selected() {
+                    let selected_stock = &self.stock_list.stocks[i];
+                    let symbol = &selected_stock.symbol;
+                    let period1 = "5";
+                    let period2 = "30";
+                    let url = format!(
+                        "http://localhost:8000/analytics?symbol={}&period1={}&period2={}",
+                        encode(symbol),
+                        encode(period1),
+                        encode(period2)
+                    );
+                    // Open the URL in the default browser
+                    if cfg!(target_os = "windows") {
+                        std::process::Command::new("cmd")
+                            .args(&["/C", "start", &url])
+                            .spawn()
+                            .expect("Failed to open web page");
+                    } else if cfg!(target_os = "macos") {
+                        std::process::Command::new("open")
+                            .arg(&url)
+                            .spawn()
+                            .expect("Failed to open web page");
+                    } else if cfg!(target_os = "linux") {
+                        std::process::Command::new("xdg-open")
+                            .arg(&url)
+                            .spawn()
+                            .expect("Failed to open web page");
+                    }
+                } else {
+                    self.status_message = String::from("No company selected for analytics.");
+                }
+            }
+
             _ => {}
         }
     }
@@ -362,19 +398,20 @@ impl App {
     fn add_stock(&mut self) {
         if let Some(i) = self.search_list.state.selected() {
             let stock_symbol = self.search_list.stocks[i].clone().symbol;
+            // Avoid adding the same stock twice
+            if self.stock_data_list.contains_key(stock_symbol.as_str()) {
+                return;
+            }
             let stock = fetch_stock(&stock_symbol);
-            // Fetch Historical data for the stock
-            let (from, to) = get_month_data_range();
-            let monthly_data = fetch_historical_data(&stock_symbol, &from, &to).expect("Error");
-            let intra_day_data = fetch_intraday_data(&stock_symbol).expect("Error");
-            let (from, to) = get_year_data_range();
-            let yearly_data = fetch_historical_data(&stock_symbol, &from, &to).expect("Error");
+            let full_data = fetch_full_historical_data(&stock_symbol).expect("Error");
+            let latest_trading_date = full_data.historical.first().unwrap().date.clone();
+            let intra_day_data =
+                fetch_intraday_data(&stock_symbol, &latest_trading_date).expect("Error");
             self.stock_data_list.insert(
                 stock_symbol,
                 StockHistoricalData {
-                    monthly: monthly_data.historical,
                     daily: intra_day_data,
-                    yearly: yearly_data.historical,
+                    full: full_data.historical,
                 },
             );
 
@@ -445,7 +482,7 @@ impl App {
         let block = Block::new()
             .title(Line::raw("Search").centered())
             .borders(Borders::ALL)
-            .border_set(symbols::border::THICK);
+            .border_set(symbols::border::PLAIN);
 
         Paragraph::new(self.input.clone())
             .block(block)
@@ -492,7 +529,6 @@ impl App {
             self.render_sma_chart(chart_area, frame); // Includes crossover analysis
             self.render_top_gainers(gainers_area, frame);
 
-            // TODO Might need a new render for this screen
             App::render_footer(footer_area, frame.buffer_mut(), Screen::Analytics);
         }
     }
@@ -509,7 +545,7 @@ impl App {
         let block = Block::new()
             .title(Line::raw(news.title).centered())
             .borders(Borders::ALL)
-            .border_set(symbols::border::THICK);
+            .border_set(symbols::border::PLAIN);
         let t = self.news_list.state.selected();
         match t {
             Some(i) => {
@@ -548,7 +584,7 @@ impl App {
         let block = Block::new()
             .title(Line::raw("Stocks").left_aligned().bold())
             .borders(Borders::ALL)
-            .border_set(symbols::border::THICK);
+            .border_set(symbols::border::PLAIN);
 
         let items: Vec<ListItem> = self
             .stock_list
@@ -561,8 +597,7 @@ impl App {
 
         StatefulWidget::render(list, area, buf, &mut self.stock_list.state);
     }
-    // TODO Need to implement the rendering of the selected item
-    // Currently, it just shows the name and price of the selected item
+
     fn render_selected_item(&self, area: Rect, buf: &mut Buffer) {
         // We get the info depending on the item's state.
         let info = if let Some(i) = self.stock_list.state.selected() {
@@ -579,7 +614,7 @@ impl App {
         let block = Block::new()
             .title(Line::raw("Stock Info").centered())
             .borders(Borders::ALL)
-            .border_set(symbols::border::THICK)
+            .border_set(symbols::border::PLAIN)
             .padding(Padding::horizontal(1));
 
         // We can now render the item info
@@ -596,48 +631,47 @@ impl App {
             // Fetch data based on the chart mode
             let (chart_data, title, x_axis_labels, x_min, x_max) = match self.chart_mode {
                 ChartMode::Intraday => {
-                    // Fetch intraday data using the updated function
-                    let intraday_data = fetch_intraday_data(symbol).unwrap_or_else(|_| vec![]);
-                
+                    // Fetch the most recent intraday data (starting with 2024-11-22 for testing)
+                    let intraday_data = &self.stock_data_list.get(symbol).unwrap().daily;
+
                     // Get the date of the intraday data
                     let chart_date = &intraday_data.first().unwrap().date[..10]; // Extract YYYY-MM-DD
-                
+
                     // Prepare data points
                     let mut dps: Vec<(f64, f64)> = Vec::new();
-                
+
                     // Define trading hours (static x-axis labels)
                     let trading_hours = vec![
                         "09:30", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00",
                     ];
-                
-                    // Total trading minutes: 390 (from 09:30 to 16:00)
-                    let total_minutes = 390;
-                
+
+                    // Map trading hours to x-axis indices
+                    let total_minutes = 390.0; // Total trading minutes: 9:30 AM to 4:00 PM
                     for entry in intraday_data.iter() {
                         if let Ok(datetime) =
-                            NaiveDateTime::parse_from_str(&entry.date, "%Y-%m-%d %H:%M:%S")
+                            chrono::NaiveDateTime::parse_from_str(&entry.date, "%Y-%m-%d %H:%M:%S")
                         {
                             // Calculate minutes since market open (9:30 AM = 570 minutes since midnight)
                             let minutes_since_open = datetime.hour() * 60 + datetime.minute() - 570;
-                
-                            if minutes_since_open <= total_minutes {
-                                // Scale minutes_since_open to the range of x-axis labels
-                                let x_index = (minutes_since_open as f64 / total_minutes as f64) * 7.0; // Scale to 7 intervals
+                            if i64::from(minutes_since_open) <= total_minutes as i64 {
+                                // Calculate normalized x value (position on the x-axis)
+                                let x_index = (minutes_since_open as f64 / total_minutes)
+                                    * (trading_hours.len() - 1) as f64;
                                 dps.push((x_index, entry.close));
                             }
                         }
                     }
-                
-                    // Generate static x-axis labels
+
+                    // Generate x-axis labels
                     let x_labels: Vec<Line> = trading_hours
                         .iter()
                         .map(|&label| Line::from(Span::raw(label)))
                         .collect();
-                
-                    // Set x-axis bounds based on the number of labels
+
+                    // Calculate x-axis bounds
                     let x_min = 0.0;
-                    let x_max = 7.0;
-                
+                    let x_max = (trading_hours.len() - 1) as f64;
+
                     (
                         dps,
                         format!("Intraday Data for {}", chart_date),
@@ -647,7 +681,6 @@ impl App {
                     )
                 }
 
-                    
                 ChartMode::Month => {
                     // Fetch 30-day historical data
                     let month_data = self.stock_data_list.get(symbol).unwrap();
@@ -655,7 +688,7 @@ impl App {
                     let mut dps: Vec<(f64, f64)> = Vec::new();
                     let mut monday_labels: Vec<Line> = Vec::new();
 
-                    for (index, entry) in month_data.monthly.iter().rev().enumerate() {
+                    for (index, entry) in month_data.get_thirty_days().iter().rev().enumerate() {
                         // Parse the date string to NaiveDate
                         if let Ok(date) = NaiveDate::parse_from_str(&entry.date, "%Y-%m-%d") {
                             // Add the close price to data points in reverse order
@@ -691,7 +724,7 @@ impl App {
                     let mut dps: Vec<(f64, f64)> = Vec::new();
                     let mut x_labels: Vec<Line> = Vec::new();
 
-                    for (index, entry) in year_data.yearly.iter().rev().enumerate() {
+                    for (index, entry) in year_data.get_year_data().iter().rev().enumerate() {
                         if let Ok(date) = NaiveDate::parse_from_str(&entry.date, "%Y-%m-%d") {
                             // Add the close price to data points in reverse order
                             dps.push((index as f64, entry.close));
@@ -727,7 +760,6 @@ impl App {
                 .iter()
                 .map(|(_, y)| *y)
                 .fold(f64::NEG_INFINITY, f64::max);
-
             // Define the chart
             let chart = Chart::new(vec![Dataset::default()
                 .marker(symbols::Marker::Braille)
@@ -763,7 +795,7 @@ impl App {
             let block = Block::default()
                 .title(Line::raw("Chart").centered())
                 .borders(Borders::ALL)
-                .border_set(symbols::border::THICK);
+                .border_set(symbols::border::PLAIN);
 
             let paragraph = Paragraph::new("Nothing selected...").block(block);
             frame.render_widget(paragraph, area);
@@ -780,6 +812,11 @@ impl App {
                 .centered()
                 .render(area, buf);
             }
+            Screen::Analytics => {
+                Paragraph::new("h to return to home, o to view detailed plot in browser, ↓↑ to scroll gainer list, Esc to quit")
+                    .centered()
+                    .render(area, buf);
+            }
             _ => {
                 Paragraph::new("h to return to home, Esc to quit")
                     .centered()
@@ -792,7 +829,7 @@ impl App {
         let block = Block::new()
             .title(Line::raw("General News").centered())
             .borders(Borders::ALL)
-            .border_set(symbols::border::THICK);
+            .border_set(symbols::border::PLAIN);
 
         // Define the news content
         let items: Vec<ListItem> = self
@@ -812,9 +849,11 @@ impl App {
     }
 
     fn render_normal_footer(&self, area: Rect, buf: &mut Buffer) {
-        Paragraph::new("Use q to quit, use s return to stock screen, use i to insert")
-            .centered()
-            .render(area, buf);
+        Paragraph::new(
+            "Use Esc to quit, use s return to stock screen, use i to insert to search box",
+        )
+        .centered()
+        .render(area, buf);
     }
 
     fn render_editing_footer(&self, area: Rect, buf: &mut Buffer) {
@@ -827,7 +866,7 @@ impl App {
         let block = Block::new()
             .title(Line::raw("Result").centered())
             .borders(Borders::ALL)
-            .border_set(symbols::border::THICK);
+            .border_set(symbols::border::PLAIN);
 
         let items: Vec<ListItem> = self
             .search_list
@@ -842,7 +881,7 @@ impl App {
     fn render_company_info(&self, area: Rect, frame: &mut Frame) {
         // Assuming `get_company` returns a Result with `Company` instance
         // let company = get_company(&selected_quote.symbol).unwrap();
-        let company = self.company.as_ref().unwrap(); // TODO get selected stock
+        let company = self.company.as_ref().unwrap();
 
         // Display company fields, 1 field per line
         let company_info = format!(
@@ -886,25 +925,40 @@ impl App {
             .filter_map(|data| parse_chart_point(&data, current_year))
             .collect();
 
+        // Check if either dataset is empty
+        if dps.is_empty() && dps2.is_empty() {
+            // Render a block with the title and the data not available message inside
+            let block = Block::default()
+                .title("Long/short Simple Moving Average 2024")
+                .borders(Borders::ALL);
+        
+            let message = Paragraph::new("SMA Data not available")
+                .block(block)
+                .style(Style::default().fg(Color::Red))
+                .alignment(Alignment::Center);
+        
+            frame.render_widget(message, area);
+            return;
+        }
         // Calculate chart bounds
         let ((x_min, x_max), (y_min, y_max)) = get_bounds(&dps, &dps2);
 
         // Define the chart with datasets
         let chart = Chart::new(vec![
             Dataset::default()
-                .name("10-day SMA")
+                .name("5-day SMA")
                 .marker(symbols::Marker::Braille)
                 .style(Style::default().fg(Color::Cyan))
                 .graph_type(GraphType::Line)
                 .data(&dps),
             Dataset::default()
-                .name("20-day SMA")
+                .name("30-day SMA")
                 .marker(symbols::Marker::Braille)
                 .style(Style::default().fg(Color::Yellow))
                 .graph_type(GraphType::Line)
                 .data(&dps2),
         ])
-        .block(Block::bordered().title("Simple Moving Average (SMA) Graph 2024: (X-axis: MMDD)"))
+        .block(Block::bordered().title("Long/short Simple Moving Average 2024: (MMDD,price)"))
         .x_axis(
             Axis::default()
                 .title("X Axis: Time")
@@ -912,7 +966,7 @@ impl App {
                 .bounds([x_min, x_max])
                 .labels([
                     Line::from(format!("{:.0}", x_min)),
-                    Line::from(format!("{:.0}", (x_min + x_max) / 2.0)),
+                    Line::from(format!("{:.0}", 615)),
                     Line::from(format!("{:.0}", x_max)),
                 ]),
         )
@@ -938,7 +992,8 @@ impl App {
 
         // Calculate scrollbar height and position
         let total_items = self.top_list.len();
-        let scrollbar_height = max_visible_items.min(area.height as usize - 3);
+        //let scrollbar_height = max_visible_items.min(area.height as usize - 3);
+        let scrollbar_height = max_visible_items.min(area.height.saturating_sub(3) as usize);
         let scrollbar_position = if total_items > max_visible_items {
             (self.scroll_offset * (scrollbar_height - 1)) / (total_items - max_visible_items)
         } else {
@@ -967,7 +1022,7 @@ impl App {
 
         // Render the top gainers block
         let block = Block::new()
-            .title(Line::raw("Top Gainers (Use ↑↓ to scroll)").centered())
+            .title(Line::raw("Top Gainers").centered())
             .borders(Borders::ALL);
 
         // Render the paragraph with gainers information
