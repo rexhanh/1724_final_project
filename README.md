@@ -41,7 +41,12 @@ User will be able to search for a stock and add it to the main screen by the com
 
 ![alt text](/images/analytics_screen.png)
 
+![alt text](/images/analytics_web.png)
 ## User's Guide
+
+### Start & Shutdown
+- start: see below Reproducibility Guide
+- shutdown: Hit `Esc`
 
 ### Main Screen
 
@@ -66,8 +71,9 @@ Once in search screen, you can hit `i` to insert text to search for a stock. Aft
 You can hit `h` to return to main screen, or `Esc` to quit the app.
 
 ### Analytics Screen
-
-You can hit `h` to return to main screen, or `Esc` to quit the app.
+- You can hit `o` to view detailed SMA plot, with crossover points marked and annotated.
+- You can use ↓↑ to scroll gainer list.
+- You can hit `h` to return to main screen, or `Esc` to quit the app.
 
 ### General News Screen
 

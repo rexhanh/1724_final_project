@@ -1,11 +1,10 @@
-use std::collections::HashMap;
-
 use chrono::{Datelike, NaiveDate, Timelike};
 use color_eyre::Result;
 use ratatui::{
     buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     layout::{Constraint, Layout, Position, Rect},
+    prelude::*,
     style::{Color, Style, Stylize},
     symbols::{self},
     text::{Line, Span},
@@ -15,18 +14,20 @@ use ratatui::{
     },
     DefaultTerminal, Frame,
 };
-mod model;
+use std::collections::HashMap;
+use urlencoding::encode;
+pub mod model;
 pub use model::{
     App, ChartMode, InputMode, NewsList, Quote, Screen, SearchList, SelectedList,
     StockHistoricalData, StockList,
 };
-mod utils;
+pub mod utils;
 use scraper::Html;
 use utils::fetch_full_historical_data;
 pub use utils::{
-    fetch_intraday_data, fetch_search_result, fetch_sma, fetch_stock,
-    get_bounds, get_company, get_news, get_top_gainers,
-    parse_chart_point, parse_news, read_saved_quotes_name, save_quotes_name,
+    fetch_intraday_data, fetch_search_result, fetch_sma, fetch_stock, get_bounds, get_company,
+    get_news, get_top_gainers, parse_chart_point, parse_news, read_saved_quotes_name,
+    save_quotes_name,
 };
 impl StockList {
     fn new() -> Self {
@@ -89,7 +90,8 @@ impl App {
                     let stock = fetch_stock(&name);
                     let full_data = fetch_full_historical_data(&name).expect("Error");
                     let latest_trading_date = full_data.historical.first().unwrap().date.clone();
-                    let intra_day_data = fetch_intraday_data(&name, &latest_trading_date).expect("Error");
+                    let intra_day_data =
+                        fetch_intraday_data(&name, &latest_trading_date).expect("Error");
                     stock_data_list.insert(
                         name.clone(),
                         StockHistoricalData {
@@ -276,6 +278,40 @@ impl App {
             }
             KeyCode::Down => self.scroll_down(), // Scroll down on Down arrow key
             KeyCode::Up => self.scroll_up(),     // Scroll up on Up arrow key
+            KeyCode::Char('o') => {
+                if let Some(i) = self.stock_list.state.selected() {
+                    let selected_stock = &self.stock_list.stocks[i];
+                    let symbol = &selected_stock.symbol;
+                    let period1 = "5";
+                    let period2 = "30";
+                    let url = format!(
+                        "http://localhost:8000/analytics?symbol={}&period1={}&period2={}",
+                        encode(symbol),
+                        encode(period1),
+                        encode(period2)
+                    );
+                    // Open the URL in the default browser
+                    if cfg!(target_os = "windows") {
+                        std::process::Command::new("cmd")
+                            .args(&["/C", "start", &url])
+                            .spawn()
+                            .expect("Failed to open web page");
+                    } else if cfg!(target_os = "macos") {
+                        std::process::Command::new("open")
+                            .arg(&url)
+                            .spawn()
+                            .expect("Failed to open web page");
+                    } else if cfg!(target_os = "linux") {
+                        std::process::Command::new("xdg-open")
+                            .arg(&url)
+                            .spawn()
+                            .expect("Failed to open web page");
+                    }
+                } else {
+                    self.status_message = String::from("No company selected for analytics.");
+                }
+            }
+
             _ => {}
         }
     }
@@ -369,7 +405,8 @@ impl App {
             let stock = fetch_stock(&stock_symbol);
             let full_data = fetch_full_historical_data(&stock_symbol).expect("Error");
             let latest_trading_date = full_data.historical.first().unwrap().date.clone();
-            let intra_day_data = fetch_intraday_data(&stock_symbol, &latest_trading_date).expect("Error");
+            let intra_day_data =
+                fetch_intraday_data(&stock_symbol, &latest_trading_date).expect("Error");
             self.stock_data_list.insert(
                 stock_symbol,
                 StockHistoricalData {
@@ -492,7 +529,6 @@ impl App {
             self.render_sma_chart(chart_area, frame); // Includes crossover analysis
             self.render_top_gainers(gainers_area, frame);
 
-            // TODO Might need a new render for this screen
             App::render_footer(footer_area, frame.buffer_mut(), Screen::Analytics);
         }
     }
@@ -561,8 +597,7 @@ impl App {
 
         StatefulWidget::render(list, area, buf, &mut self.stock_list.state);
     }
-    // TODO Need to implement the rendering of the selected item
-    // Currently, it just shows the name and price of the selected item
+
     fn render_selected_item(&self, area: Rect, buf: &mut Buffer) {
         // We get the info depending on the item's state.
         let info = if let Some(i) = self.stock_list.state.selected() {
@@ -725,7 +760,6 @@ impl App {
                 .iter()
                 .map(|(_, y)| *y)
                 .fold(f64::NEG_INFINITY, f64::max);
-
             // Define the chart
             let chart = Chart::new(vec![Dataset::default()
                 .marker(symbols::Marker::Braille)
@@ -759,7 +793,7 @@ impl App {
             frame.render_widget(chart, area);
         } else {
             let block = Block::default()
-                .title(Line::raw("Chart").centered())
+                .title(Line::raw("Chart (d to view daily chart, m to view monthly chart, y to view yearly chart, )").centered())
                 .borders(Borders::ALL)
                 .border_set(symbols::border::PLAIN);
 
@@ -777,6 +811,11 @@ impl App {
                 )
                 .centered()
                 .render(area, buf);
+            }
+            Screen::Analytics => {
+                Paragraph::new("h to return to home, o to view detailed plot in browser, ↓↑ to scroll gainer list, Esc to quit")
+                    .centered()
+                    .render(area, buf);
             }
             _ => {
                 Paragraph::new("h to return to home, Esc to quit")
@@ -810,9 +849,11 @@ impl App {
     }
 
     fn render_normal_footer(&self, area: Rect, buf: &mut Buffer) {
-        Paragraph::new("Use q to quit, use s return to stock screen, use i to insert")
-            .centered()
-            .render(area, buf);
+        Paragraph::new(
+            "Use Esc to quit, use s return to stock screen, use i to insert to search box",
+        )
+        .centered()
+        .render(area, buf);
     }
 
     fn render_editing_footer(&self, area: Rect, buf: &mut Buffer) {
@@ -840,7 +881,7 @@ impl App {
     fn render_company_info(&self, area: Rect, frame: &mut Frame) {
         // Assuming `get_company` returns a Result with `Company` instance
         // let company = get_company(&selected_quote.symbol).unwrap();
-        let company = self.company.as_ref().unwrap(); // TODO get selected stock
+        let company = self.company.as_ref().unwrap();
 
         // Display company fields, 1 field per line
         let company_info = format!(
@@ -884,25 +925,40 @@ impl App {
             .filter_map(|data| parse_chart_point(&data, current_year))
             .collect();
 
+        // Check if either dataset is empty
+        if dps.is_empty() && dps2.is_empty() {
+            // Render a block with the title and the data not available message inside
+            let block = Block::default()
+                .title("Long/short Simple Moving Average 2024")
+                .borders(Borders::ALL);
+        
+            let message = Paragraph::new("SMA Data not available")
+                .block(block)
+                .style(Style::default().fg(Color::Red))
+                .alignment(Alignment::Center);
+        
+            frame.render_widget(message, area);
+            return;
+        }
         // Calculate chart bounds
         let ((x_min, x_max), (y_min, y_max)) = get_bounds(&dps, &dps2);
 
         // Define the chart with datasets
         let chart = Chart::new(vec![
             Dataset::default()
-                .name("10-day SMA")
+                .name("5-day SMA")
                 .marker(symbols::Marker::Braille)
                 .style(Style::default().fg(Color::Cyan))
                 .graph_type(GraphType::Line)
                 .data(&dps),
             Dataset::default()
-                .name("20-day SMA")
+                .name("30-day SMA")
                 .marker(symbols::Marker::Braille)
                 .style(Style::default().fg(Color::Yellow))
                 .graph_type(GraphType::Line)
                 .data(&dps2),
         ])
-        .block(Block::bordered().title("Simple Moving Average (SMA) Graph 2024: (X-axis: MMDD)"))
+        .block(Block::bordered().title("Long/short Simple Moving Average 2024: (MMDD,price)"))
         .x_axis(
             Axis::default()
                 .title("X Axis: Time")
@@ -936,7 +992,8 @@ impl App {
 
         // Calculate scrollbar height and position
         let total_items = self.top_list.len();
-        let scrollbar_height = max_visible_items.min(area.height as usize - 3);
+        //let scrollbar_height = max_visible_items.min(area.height as usize - 3);
+        let scrollbar_height = max_visible_items.min(area.height.saturating_sub(3) as usize);
         let scrollbar_position = if total_items > max_visible_items {
             (self.scroll_offset * (scrollbar_height - 1)) / (total_items - max_visible_items)
         } else {
@@ -965,7 +1022,7 @@ impl App {
 
         // Render the top gainers block
         let block = Block::new()
-            .title(Line::raw("Top Gainers (Use ↑↓ to scroll)").centered())
+            .title(Line::raw("Top Gainers").centered())
             .borders(Borders::ALL);
 
         // Render the paragraph with gainers information

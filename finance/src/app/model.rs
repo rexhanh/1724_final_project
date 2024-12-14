@@ -155,3 +155,8 @@ impl StockHistoricalData {
         self.full.iter().take(365).cloned().collect()
     }
 }
+
+pub struct Point {
+    pub x: f64,
+    pub y: f64,
+}
