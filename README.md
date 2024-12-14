@@ -3,9 +3,9 @@
 ## Members
 
 **Team Members**:  
-Yuanrong Han 1010787409  
-Lin Sheng 1010798585  
-Ziyue Gong 1005710740
+Yuanrong Han 1010787409 rexhanh  
+Lin Sheng 1010798585 OkayJeff5  
+Ziyue Gong 1005710740 ZyeG  
 
 ## Motivation
 
