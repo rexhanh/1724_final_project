@@ -167,6 +167,21 @@ fn generate_chart(
     Ok(())
 }
 
+// Helper function to generate a message chart
+fn generate_message_chart(message: &str, file_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    use plotters::prelude::*;
+    let root = BitMapBackend::new(file_name, (800, 600)).into_drawing_area();
+    root.fill(&WHITE)?;
+
+    // Create a text style
+    let text_style = ("sans-serif", 30).into_text_style(&root).color(&BLACK);
+
+    // Draw the message at a fixed position
+    root.draw_text(message, &text_style, (20, 300))?;
+
+    Ok(())
+}
+
 // Define the endpoint
 #[get("/analytics?<symbol>&<period1>&<period2>")]
 async fn analytics(symbol: String, period1: String, period2: String) -> Result<NamedFile, Status> {
@@ -184,6 +199,22 @@ async fn analytics(symbol: String, period1: String, period2: String) -> Result<N
     })?;
     let sma2 = filter(sma2);
 
+    // check if any sma empty
+    if sma1.is_empty() || sma2.is_empty() {
+        // Generate a message chart instead of the full plot
+        let file_name = format!("./tmp/{}_analytics_chart.png", symbol);
+        if let Err(err) = generate_message_chart("SMA Data not available", &file_name) {
+            error!("Error generating message chart for symbol {}: {}", symbol, err);
+            return Err(Status::InternalServerError);
+        }
+
+        // Serve the message chart
+        return NamedFile::open(Path::new(&file_name)).await.map_err(|err| {
+            error!("Error serving message chart file {}: {}", file_name, err);
+            Status::InternalServerError
+        });
+    }
+
     // Generate chart and save to a temporary file
     let file_name = format!("./tmp/{}_analytics_chart.png", symbol);
     if let Err(err) = generate_chart(&symbol, sma1, sma2, &file_name) {
@@ -197,6 +228,7 @@ async fn analytics(symbol: String, period1: String, period2: String) -> Result<N
         Status::InternalServerError
     })
 }
+
 pub fn rocket() -> rocket::Rocket<rocket::Build> {
     rocket::build().mount("/", routes![analytics])
 }

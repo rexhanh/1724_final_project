@@ -141,11 +141,21 @@ pub struct StockData {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct StockHistoricalData {
     pub daily: Vec<HistoricalPrice>,
-    pub monthly: Vec<HistoricalPrice>,
-    pub yearly: Vec<HistoricalPrice>,
+    pub full: Vec<HistoricalPrice>,
 }
 
-// for analytics plot find intersection
+
+impl StockHistoricalData {
+
+    pub fn get_thirty_days(&self) -> Vec<HistoricalPrice> {
+        self.full.iter().take(30).cloned().collect()
+    }
+
+    pub fn get_year_data(&self) -> Vec<HistoricalPrice> {
+        self.full.iter().take(365).cloned().collect()
+    }
+}
+
 pub struct Point {
     pub x: f64,
     pub y: f64,

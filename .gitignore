@@ -3,3 +3,4 @@
 /finance/saved.json
 /finance/tmp/*
 /finance/errors.log
+.DS_Store

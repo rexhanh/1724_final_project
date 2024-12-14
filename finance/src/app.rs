@@ -4,6 +4,7 @@ use ratatui::{
     buffer::Buffer,
     crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind},
     layout::{Constraint, Layout, Position, Rect},
+    prelude::*,
     style::{Color, Style, Stylize},
     symbols::{self},
     text::{Line, Span},
@@ -22,10 +23,11 @@ pub use model::{
 };
 pub mod utils;
 use scraper::Html;
+use utils::fetch_full_historical_data;
 pub use utils::{
-    fetch_historical_data, fetch_intraday_data, fetch_search_result, fetch_sma, fetch_stock,
-    get_bounds, get_company, get_month_data_range, get_news, get_top_gainers, get_year_data_range,
-    parse_chart_point, parse_news, read_saved_quotes_name, save_quotes_name,
+    fetch_intraday_data, fetch_search_result, fetch_sma, fetch_stock, get_bounds, get_company,
+    get_news, get_top_gainers, parse_chart_point, parse_news, read_saved_quotes_name,
+    save_quotes_name,
 };
 impl StockList {
     fn new() -> Self {
@@ -86,17 +88,17 @@ impl App {
             Ok(names) => {
                 for name in names {
                     let stock = fetch_stock(&name);
-                    let (from, to) = get_month_data_range();
-                    let monthly_data = fetch_historical_data(&name, &from, &to).expect("Error");
-                    let intra_day_data = fetch_intraday_data(&name).expect("Error");
-                    let (from, to) = get_year_data_range();
-                    let yearly_data = fetch_historical_data(&name, &from, &to).expect("Error");
+                    let full_data = fetch_full_historical_data(&name).expect("Error");
+                    let latest_trading_date = full_data.historical.first().unwrap().date.clone();
+                    let intra_day_data =
+                        fetch_intraday_data(&name, &latest_trading_date).expect("Error");
                     stock_data_list.insert(
                         name.clone(),
                         StockHistoricalData {
-                            monthly: monthly_data.historical,
+                            // monthly: monthly_data.historical,
                             daily: intra_day_data,
-                            yearly: yearly_data.historical,
+                            // yearly: yearly_data.historical,
+                            full: full_data.historical,
                         },
                     );
                     match stock {
@@ -277,14 +279,16 @@ impl App {
             KeyCode::Down => self.scroll_down(), // Scroll down on Down arrow key
             KeyCode::Up => self.scroll_up(),     // Scroll up on Up arrow key
             KeyCode::Char('o') => {
-                if let Some(i) = self.stock_list.state.selected(){
+                if let Some(i) = self.stock_list.state.selected() {
                     let selected_stock = &self.stock_list.stocks[i];
                     let symbol = &selected_stock.symbol;
                     let period1 = "5";
                     let period2 = "30";
                     let url = format!(
                         "http://localhost:8000/analytics?symbol={}&period1={}&period2={}",
-                        encode(symbol), encode(period1), encode(period2)
+                        encode(symbol),
+                        encode(period1),
+                        encode(period2)
                     );
                     // Open the URL in the default browser
                     if cfg!(target_os = "windows") {
@@ -303,9 +307,7 @@ impl App {
                             .spawn()
                             .expect("Failed to open web page");
                     }
-                }
-
-                else {
+                } else {
                     self.status_message = String::from("No company selected for analytics.");
                 }
             }
@@ -397,18 +399,15 @@ impl App {
         if let Some(i) = self.search_list.state.selected() {
             let stock_symbol = self.search_list.stocks[i].clone().symbol;
             let stock = fetch_stock(&stock_symbol);
-            // Fetch Historical data for the stock
-            let (from, to) = get_month_data_range();
-            let monthly_data = fetch_historical_data(&stock_symbol, &from, &to).expect("Error");
-            let intra_day_data = fetch_intraday_data(&stock_symbol).expect("Error");
-            let (from, to) = get_year_data_range();
-            let yearly_data = fetch_historical_data(&stock_symbol, &from, &to).expect("Error");
+            let full_data = fetch_full_historical_data(&stock_symbol).expect("Error");
+            let latest_trading_date = full_data.historical.first().unwrap().date.clone();
+            let intra_day_data =
+                fetch_intraday_data(&stock_symbol, &latest_trading_date).expect("Error");
             self.stock_data_list.insert(
                 stock_symbol,
                 StockHistoricalData {
-                    monthly: monthly_data.historical,
                     daily: intra_day_data,
-                    yearly: yearly_data.historical,
+                    full: full_data.historical,
                 },
             );
 
@@ -685,7 +684,7 @@ impl App {
                     let mut dps: Vec<(f64, f64)> = Vec::new();
                     let mut monday_labels: Vec<Line> = Vec::new();
 
-                    for (index, entry) in month_data.monthly.iter().rev().enumerate() {
+                    for (index, entry) in month_data.get_thirty_days().iter().rev().enumerate() {
                         // Parse the date string to NaiveDate
                         if let Ok(date) = NaiveDate::parse_from_str(&entry.date, "%Y-%m-%d") {
                             // Add the close price to data points in reverse order
@@ -721,7 +720,7 @@ impl App {
                     let mut dps: Vec<(f64, f64)> = Vec::new();
                     let mut x_labels: Vec<Line> = Vec::new();
 
-                    for (index, entry) in year_data.yearly.iter().rev().enumerate() {
+                    for (index, entry) in year_data.get_year_data().iter().rev().enumerate() {
                         if let Ok(date) = NaiveDate::parse_from_str(&entry.date, "%Y-%m-%d") {
                             // Add the close price to data points in reverse order
                             dps.push((index as f64, entry.close));
@@ -922,6 +921,21 @@ impl App {
             .filter_map(|data| parse_chart_point(&data, current_year))
             .collect();
 
+        // Check if either dataset is empty
+        if dps.is_empty() && dps2.is_empty() {
+            // Render a block with the title and the data not available message inside
+            let block = Block::default()
+                .title("Long/short Simple Moving Average 2024")
+                .borders(Borders::ALL);
+        
+            let message = Paragraph::new("SMA Data not available")
+                .block(block)
+                .style(Style::default().fg(Color::Red))
+                .alignment(Alignment::Center);
+        
+            frame.render_widget(message, area);
+            return;
+        }
         // Calculate chart bounds
         let ((x_min, x_max), (y_min, y_max)) = get_bounds(&dps, &dps2);
 
