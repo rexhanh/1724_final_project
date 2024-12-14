@@ -362,6 +362,10 @@ impl App {
     fn add_stock(&mut self) {
         if let Some(i) = self.search_list.state.selected() {
             let stock_symbol = self.search_list.stocks[i].clone().symbol;
+            // Avoid adding the same stock twice
+            if self.stock_data_list.contains_key(stock_symbol.as_str()) {
+                return;
+            }
             let stock = fetch_stock(&stock_symbol);
             let full_data = fetch_full_historical_data(&stock_symbol).expect("Error");
             let latest_trading_date = full_data.historical.first().unwrap().date.clone();
