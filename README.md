@@ -98,9 +98,11 @@ Yuanrong Han
 - search screen
 - main screen: stock list view
 - news screen
+
 Lin Sheng
 - main screen: stock detailed view
 - price charts - daily, monthly, yearly
+
 Ziyue Gong
 - analysis screen
 - web served endpoint for SMA plot
