@@ -5,7 +5,7 @@
 **Team Members**:  
 Yuanrong Han 1010787409 rexhanh  
 Lin Sheng 1010798585 OkayJeff5  
-Ziyue Gong 1005710740 ZyeG  
+Ziyue Gong 1005710740 joy.gong@mail.utoronto.ca ZyeG 
 
 ## Motivation
 We picked stocks as a project topic because the data is easily available by third party api and we wanted to focus on exploring usage of TUI and programming using rust in general.
