@@ -22,6 +22,7 @@ Feature highlights that differentiate our app from others:
 2. Multi-Screen Navigation: Offer a seamless navigation experience between multiple screens: main screen, search screen, analytics screen and general news screen.
 3. User-Friendly Terminal Interface: Leverage Ratatui to create an aesthetically pleasing and intuitive interface.
 4. News Integration: Incorporate relevant news articles related to stocks.
+5. Analysis Integration: Incorporate technicial indicators for actionable insights.
 
 ## Features
 
@@ -93,7 +94,11 @@ cd 1724_final_project/finance
 cargo run
 ```
 ## Contribution
-
+Yuanrong Han
+Lin Sheng
+Ziyue Gong
+- analysis screen TUI
+- web served endpoint for SMA plot
 
 ## Lessons Learned
 ### Limitation of TUI:
