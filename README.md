@@ -3,8 +3,8 @@
 ## Members
 
 **Team Members**:  
-Yuanrong Han 1010787409 rexhanh  
-Lin Sheng 1010798585 OkayJeff5  
+Yuanrong Han 1010787409 rex.han@mail.utoronto.ca rexhanh  
+Lin Sheng 1010798585 jeff.sheng@mail.utoronto.ca OkayJeff5  
 Ziyue Gong 1005710740 joy.gong@mail.utoronto.ca ZyeG 
 
 ## Motivation
@@ -95,9 +95,14 @@ cargo run
 ```
 ## Contribution
 Yuanrong Han
+- search screen
+- main screen: stock list view
+- news screen
 Lin Sheng
+- main screen: stock detailed view
+- price charts - daily, monthly, yearly
 Ziyue Gong
-- analysis screen TUI
+- analysis screen
 - web served endpoint for SMA plot
 
 ## Lessons Learned
