@@ -966,7 +966,7 @@ impl App {
                 .bounds([x_min, x_max])
                 .labels([
                     Line::from(format!("{:.0}", x_min)),
-                    Line::from(format!("{:.0}", (x_min + x_max) / 2.0)),
+                    Line::from(format!("{:.0}", 615)),
                     Line::from(format!("{:.0}", x_max)),
                 ]),
         )
