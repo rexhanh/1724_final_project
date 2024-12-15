@@ -93,4 +93,4 @@ cargo run
 
 ## Video Demo
 
-[![DEMO](https://img.youtube.com/vi/4aPzVM6p3lU/0.jpg)](https://www.youtube.com/watch?v=4aPzVM6p3lU)
+[![DEMO](https://img.youtube.com/vi/DmkLOqRHKGI/0.jpg)](https://www.youtube.com/watch?v=DmkLOqRHKGI)
